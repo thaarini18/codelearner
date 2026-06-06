@@ -1,318 +1,382 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const DIFF_COLORS = {
+  easy:   { bg: '#d4edda', color: '#155724' },
+  medium: { bg: '#fff3cd', color: '#856404' },
+  hard:   { bg: '#f8d7da', color: '#721c24' },
+};
+
+const s = {
+  label:    { display: 'block', fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 5 },
+  input:    { width: '100%', padding: '7px 11px', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' },
+  mono:     { fontFamily: 'SFMono-Regular, Consolas, monospace', fontSize: 13 },
+  btnBlue:  { padding: '7px 16px', background: '#0f6cbf', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnGray:  { padding: '7px 16px', background: '#fff', color: '#333', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13, cursor: 'pointer' },
+  btnDash:  { padding: '7px 16px', background: '#fff', color: '#555', border: '1px dashed #adb5bd', borderRadius: 4, fontSize: 13, cursor: 'pointer' },
+  section:  { padding: '14px 20px', borderBottom: '1px solid #f0f0f0' },
+  sHead:    { fontSize: 12, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
+};
+
+/* ── Sidebar ── */
+const Sidebar = ({ active, setActive }) => {
+  const items = [
+    { id: 'questions', label: 'Assignment questions', icon: '📋' },
+    { id: 'create',    label: 'Create question',      icon: '✏️'  },
+    { id: 'grades',    label: 'Grades',               icon: '📊' },
+    { id: 'participants', label: 'Participants',      icon: '👥' },
+  ];
+  return (
+    <div style={{ width: 220, background: '#fff', borderRight: '1px solid #dee2e6', minHeight: 'calc(100vh - 52px)', flexShrink: 0 }}>
+      <div style={{ padding: '16px 16px 8px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Navigation</div>
+      {items.map(item => (
+        <button key={item.id} onClick={() => setActive(item.id)} style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px',
+          background: active === item.id ? '#e8f0fb' : 'transparent',
+          borderLeft: active === item.id ? '4px solid #0f6cbf' : '4px solid transparent',
+          border: 'none', cursor: 'pointer', fontSize: 14,
+          color: active === item.id ? '#0f6cbf' : '#333',
+          fontWeight: active === item.id ? 500 : 400, textAlign: 'left',
+        }}>
+          <span>{item.icon}</span>{item.label}
+        </button>
+      ))}
+      <div style={{ margin: '12px 12px', borderTop: '1px solid #dee2e6' }} />
+      <div style={{ padding: '6px 16px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Course</div>
+      <div style={{ padding: '8px 16px', fontSize: 13, color: '#555' }}>
+        <div style={{ fontWeight: 500, marginBottom: 2 }}>CS101</div>
+        <div style={{ color: '#888', fontSize: 12 }}>Introduction to MIPS Assembly</div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Test-case editor (inline, per-question) ── */
+const TestCaseEditor = ({ cases, onChange }) => {
+  const add = () => onChange([...cases, { label: '', input: '', expectedOutput: '' }]);
+  const remove = (i) => onChange(cases.filter((_, idx) => idx !== i));
+  const update = (i, field, val) => {
+    const next = cases.map((c, idx) => idx === i ? { ...c, [field]: val } : c);
+    onChange(next);
+  };
+
+  return (
+    <div>
+      {cases.map((tc, i) => (
+        <div key={i} style={{ background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 4, padding: 12, marginBottom: 10, position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>Test case {i + 1}</span>
+            <button onClick={() => remove(i)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={s.label}>Label <span style={{ color: '#888', fontWeight: 400 }}>(optional)</span></label>
+            <input value={tc.label} onChange={e => update(i, 'label', e.target.value)} style={s.input} placeholder="e.g. Basic addition" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={s.label}>Input</label>
+              <textarea
+                value={tc.input}
+                onChange={e => update(i, 'input', e.target.value)}
+                style={{ ...s.input, ...s.mono, height: 72, resize: 'vertical' }}
+                placeholder={"e.g.\n5\n3"}
+              />
+            </div>
+            <div>
+              <label style={s.label}>Expected output</label>
+              <textarea
+                value={tc.expectedOutput}
+                onChange={e => update(i, 'expectedOutput', e.target.value)}
+                style={{ ...s.input, ...s.mono, height: 72, resize: 'vertical' }}
+                placeholder={"e.g.\n8"}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+      <button onClick={add} style={s.btnDash}>+ Add test case</button>
+    </div>
+  );
+};
+
+/* ── Question card (expanded view with all sections) ── */
+const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
+  const [tab, setTab] = useState('answer');           // 'answer' | 'placeholder' | 'testcases'
+  const [editingAnswer, setEditingAnswer] = useState(false);
+  const [answerDraft, setAnswerDraft]     = useState(q.answer || '');
+  const [placeholder, setPlaceholder]    = useState(q.placeholderCode || '');
+  const [testCases, setTestCases]         = useState(q.testCases || []);
+  const [saving, setSaving]               = useState(false);
+
+  const saveAnswer = async () => {
+    if (!answerDraft.trim()) return;
+    setSaving(true);
+    const res = await axios.post(`/api/questions/${q._id}/answer`, { answer: answerDraft });
+    onUpdate(res.data);
+    setEditingAnswer(false);
+    setSaving(false);
+  };
+
+  const savePlaceholder = async () => {
+    setSaving(true);
+    const res = await axios.put(`/api/questions/${q._id}`, { placeholderCode: placeholder });
+    onUpdate(res.data);
+    setSaving(false);
+  };
+
+  const saveTestCases = async () => {
+    setSaving(true);
+    const res = await axios.put(`/api/questions/${q._id}`, { testCases });
+    onUpdate(res.data);
+    setSaving(false);
+  };
+
+  const tabBtn = (id, label) => (
+    <button onClick={() => setTab(id)} style={{
+      padding: '7px 16px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+      background: tab === id ? '#fff' : '#f8f9fa',
+      color: tab === id ? '#0f6cbf' : '#555',
+      borderBottom: tab === id ? '2px solid #0f6cbf' : '2px solid transparent',
+    }}>{label}</button>
+  );
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 12, overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ ...s.section, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#0f6cbf', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14, flexShrink: 0 }}>
+          {index + 1}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: '#333', marginBottom: 4 }}>{q.title}</div>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>{q.description}</div>
+          <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: DIFF_COLORS[q.difficulty]?.bg, color: DIFF_COLORS[q.difficulty]?.color }}>
+            {q.difficulty}
+          </span>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ borderBottom: '1px solid #dee2e6', background: '#f8f9fa', display: 'flex' }}>
+        {tabBtn('answer',      '📝 Answer')}
+        {tabBtn('placeholder', '💻 Placeholder code')}
+        {tabBtn('testcases',   `🧪 Test cases${q.testCases?.length ? ` (${q.testCases.length})` : ''}`)}
+      </div>
+
+      {/* Tab: Answer */}
+      {tab === 'answer' && (
+        <div style={s.section}>
+          <div style={s.sHead}>Model answer</div>
+          {editingAnswer ? (
+            <>
+              <textarea
+                value={answerDraft}
+                onChange={e => setAnswerDraft(e.target.value)}
+                style={{ ...s.input, ...s.mono, height: 110, resize: 'vertical', marginBottom: 10 }}
+                placeholder="Enter the correct answer or solution..."
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={saveAnswer} disabled={saving} style={s.btnBlue}>{saving ? 'Saving…' : 'Save answer'}</button>
+                <button onClick={() => { setEditingAnswer(false); setAnswerDraft(q.answer || ''); }} style={s.btnGray}>Cancel</button>
+              </div>
+            </>
+          ) : q.answer ? (
+            <>
+              <div style={{ background: '#f0f7ff', border: '1px solid #cce0ff', borderRadius: 4, padding: '10px 14px', ...s.mono, color: '#333', whiteSpace: 'pre-wrap', marginBottom: 10 }}>
+                {q.answer}
+              </div>
+              <button onClick={() => { setEditingAnswer(true); setAnswerDraft(q.answer); }} style={s.btnGray}>✏️ Edit answer</button>
+            </>
+          ) : (
+            <button onClick={() => setEditingAnswer(true)} style={s.btnDash}>+ Add answer</button>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Placeholder code */}
+      {tab === 'placeholder' && (
+        <div style={s.section}>
+          <div style={s.sHead}>Starter / placeholder code</div>
+          <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 12 }}>
+            This code will be shown to students as the starting point for the question.
+          </p>
+          <textarea
+            value={placeholder}
+            onChange={e => setPlaceholder(e.target.value)}
+            style={{ ...s.input, ...s.mono, height: 160, resize: 'vertical', marginBottom: 10 }}
+            placeholder={`# MIPS starter template\n.data\n    # your data section here\n\n.text\nmain:\n    # your code here\n\n    li $v0, 10     # exit syscall\n    syscall`}
+          />
+          <button onClick={savePlaceholder} disabled={saving} style={s.btnBlue}>{saving ? 'Saving…' : 'Save placeholder code'}</button>
+        </div>
+      )}
+
+      {/* Tab: Test cases */}
+      {tab === 'testcases' && (
+        <div style={s.section}>
+          <div style={s.sHead}>Test cases</div>
+          <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 12 }}>
+            Define inputs and expected outputs to verify student solutions.
+          </p>
+          <TestCaseEditor cases={testCases} onChange={setTestCases} />
+          {testCases.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <button onClick={saveTestCases} disabled={saving} style={s.btnBlue}>{saving ? 'Saving…' : 'Save test cases'}</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Visibility toggle — always visible at bottom */}
+      <div style={{ padding: '12px 20px', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#333' }}>Student visibility</div>
+          <div style={{ fontSize: 12, color: q.isAnswerVisible ? '#155724' : '#888' }}>
+            {q.isAnswerVisible ? '✓ Answer visible to students' : 'Answer hidden from students'}
+          </div>
+        </div>
+        <button
+          onClick={() => onToggleVisibility(q._id, q.isAnswerVisible)}
+          style={{ width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', position: 'relative', background: q.isAnswerVisible ? '#28a745' : '#ccc', transition: 'background 0.2s' }}
+        >
+          <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: q.isAnswerVisible ? 23 : 3, transition: 'left 0.2s' }} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* ── Main dashboard ── */
 const TeacherDashboard = ({ courseId = 'course-001' }) => {
   const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editingAnswerId, setEditingAnswerId] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [newQuestion, setNewQuestion] = useState({
-    title: '',
-    description: '',
-    difficulty: 'medium',
-  });
+  const [loading, setLoading]     = useState(true);
+  const [active, setActive]       = useState('questions');
+  const [newQ, setNewQ]           = useState({ title: '', description: '', difficulty: 'medium' });
+  const [toast, setToast]         = useState(null);
 
-  useEffect(() => {
-    fetchQuestions();
-  }, [courseId]);
+  useEffect(() => { fetchQuestions(); }, [courseId]);
 
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/questions/course/${courseId}`);
-      setQuestions(response.data);
-      // Initialize answers state
-      const answersObj = {};
-      response.data.forEach((q) => {
-        answersObj[q._id] = q.answer || '';
-      });
-      setAnswers(answersObj);
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-      alert('Failed to load questions');
-    } finally {
-      setLoading(false);
-    }
+      const res = await axios.get(`/api/questions/course/${courseId}`);
+      setQuestions(res.data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  const handleCreateQuestion = async (e) => {
+  const notify = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+
+  const handleCreate = async (e) => {
     e.preventDefault();
-    if (!newQuestion.title.trim() || !newQuestion.description.trim()) {
-      alert('Please fill in all fields');
-      return;
-    }
-
+    if (!newQ.title.trim() || !newQ.description.trim()) return;
     try {
-      const response = await axios.post('/api/questions', {
-        ...newQuestion,
-        courseId,
-        createdBy: 'teacher-001',
-      });
-      setQuestions([response.data, ...questions]);
-      setAnswers({ ...answers, [response.data._id]: '' });
-      setNewQuestion({ title: '', description: '', difficulty: 'medium' });
-      alert('Question created successfully!');
-    } catch (error) {
-      console.error('Error creating question:', error);
-      alert('Failed to create question');
-    }
+      const res = await axios.post('/api/questions', { ...newQ, courseId, createdBy: 'teacher-001' });
+      setQuestions([res.data, ...questions]);
+      setNewQ({ title: '', description: '', difficulty: 'medium' });
+      setActive('questions');
+      notify('Question created');
+    } catch (e) { console.error(e); }
   };
 
-  const handleSubmitAnswer = async (questionId) => {
-    if (!answers[questionId].trim()) {
-      alert('Please enter an answer');
-      return;
-    }
+  const handleUpdate = (updated) => setQuestions(qs => qs.map(q => q._id === updated._id ? updated : q));
 
+  const handleToggleVisibility = async (id, current) => {
     try {
-      const response = await axios.post(`/api/questions/${questionId}/answer`, {
-        answer: answers[questionId],
-      });
-      setQuestions(
-        questions.map((q) => (q._id === questionId ? response.data : q))
-      );
-      setEditingAnswerId(null);
-      alert('Answer saved successfully!');
-    } catch (error) {
-      console.error('Error saving answer:', error);
-      alert('Failed to save answer');
-    }
+      const res = await axios.patch(`/api/questions/${id}/visibility`, { isAnswerVisible: !current });
+      handleUpdate(res.data);
+      notify(res.data.isAnswerVisible ? 'Answer visible to students' : 'Answer hidden');
+    } catch (e) { console.error(e); }
   };
-
-  const handleToggleVisibility = async (questionId, currentVisibility) => {
-    try {
-      const response = await axios.patch(
-        `/api/questions/${questionId}/visibility`,
-        {
-          isAnswerVisible: !currentVisibility,
-        }
-      );
-      setQuestions(
-        questions.map((q) => (q._id === questionId ? response.data : q))
-      );
-      alert('Visibility updated!');
-    } catch (error) {
-      console.error('Error updating visibility:', error);
-      alert('Failed to update visibility');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-xl text-gray-600 dark:text-gray-400">
-          Loading questions...
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-        👨‍🏫 Teacher Dashboard
-      </h1>
+    <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', background: '#f2f2f2' }}>
+      <Sidebar active={active} setActive={setActive} />
 
-      {/* Create New Question Form */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-          Create New Question
-        </h2>
-        <form onSubmit={handleCreateQuestion} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Question Title
-            </label>
-            <input
-              type="text"
-              value={newQuestion.title}
-              onChange={(e) =>
-                setNewQuestion({ ...newQuestion, title: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none"
-              placeholder="Enter question title"
-            />
+      <div style={{ flex: 1, padding: 24 }}>
+        {/* Breadcrumb */}
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>Dashboard</span>
+          <span style={{ margin: '0 6px' }}>›</span>
+          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>CS101</span>
+          <span style={{ margin: '0 6px' }}>›</span>
+          <span>{active === 'create' ? 'Create question' : 'Assignment questions'}</span>
+        </div>
+
+        {toast && (
+          <div style={{ background: '#d4edda', border: '1px solid #c3e6cb', color: '#155724', borderRadius: 4, padding: '10px 16px', marginBottom: 16, fontSize: 14 }}>
+            ✓ {toast}
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Question Description
-            </label>
-            <textarea
-              value={newQuestion.description}
-              onChange={(e) =>
-                setNewQuestion({ ...newQuestion, description: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none"
-              placeholder="Enter question description"
-              rows="4"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Difficulty Level
-            </label>
-            <select
-              value={newQuestion.difficulty}
-              onChange={(e) =>
-                setNewQuestion({ ...newQuestion, difficulty: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none"
-            >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 dark:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors duration-200"
-          >
-            Create Question
-          </button>
-        </form>
-      </div>
-
-      {/* Questions List */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Questions ({questions.length})
-        </h2>
-
-        {questions.length === 0 ? (
-          <div className="bg-gray-100 dark:bg-gray-700 p-8 rounded-lg text-center text-gray-600 dark:text-gray-400">
-            No questions yet. Create one to get started!
-          </div>
-        ) : (
-          questions.map((question) => (
-            <div
-              key={question._id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700 transition-colors duration-200"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {question.title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    {question.description}
-                  </p>
-                  <div className="mt-2 flex gap-2">
-                    <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full">
-                      {question.difficulty}
-                    </span>
-                    <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-3 py-1 rounded-full">
-                      ID: {question._id.substring(0, 8)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Answer Section */}
-              <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-                <div className="space-y-4">
-                  {editingAnswerId === question._id ? (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Edit Answer
-                      </label>
-                      <textarea
-                        value={answers[question._id]}
-                        onChange={(e) =>
-                          setAnswers({
-                            ...answers,
-                            [question._id]: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 outline-none"
-                        rows="4"
-                        placeholder="Enter the correct answer"
-                      />
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          onClick={() =>
-                            handleSubmitAnswer(question._id)
-                          }
-                          className="bg-green-600 dark:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-800 transition-colors duration-200"
-                        >
-                          Save Answer
-                        </button>
-                        <button
-                          onClick={() => setEditingAnswerId(null)}
-                          className="bg-gray-400 dark:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-500 dark:hover:bg-gray-700 transition-colors duration-200"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {question.answer ? (
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Current Answer:
-                          </p>
-                          <div className="mt-2 bg-gray-100 dark:bg-gray-700 p-4 rounded text-gray-900 dark:text-gray-100">
-                            {question.answer}
-                          </div>
-                          <button
-                            onClick={() => setEditingAnswerId(question._id)}
-                            className="mt-3 bg-yellow-500 dark:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 dark:hover:bg-yellow-700 transition-colors duration-200"
-                          >
-                            ✏️ Edit Answer
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setEditingAnswerId(question._id)}
-                          className="w-full bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors duration-200"
-                        >
-                          + Add Answer
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Visibility Toggle */}
-                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        Allow students to view answer
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                        {question.isAnswerVisible
-                          ? 'Answer is visible to students'
-                          : 'Answer is hidden from students'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        handleToggleVisibility(
-                          question._id,
-                          question.isAnswerVisible
-                        )
-                      }
-                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                        question.isAnswerVisible
-                          ? 'bg-green-600 dark:bg-green-700'
-                          : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                          question.isAnswerVisible ? 'translate-x-7' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </div>
+        {/* Create form */}
+        {active === 'create' && (
+          <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
+            <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
+              <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Create new question</h2>
             </div>
-          ))
+            <form onSubmit={handleCreate} style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={s.label}>Question title</label>
+                <input value={newQ.title} onChange={e => setNewQ({ ...newQ, title: e.target.value })} style={s.input} placeholder="e.g. Write a MIPS program to add two numbers" />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={s.label}>Description / instructions</label>
+                <textarea value={newQ.description} onChange={e => setNewQ({ ...newQ, description: e.target.value })} style={{ ...s.input, height: 90, resize: 'vertical' }} placeholder="Describe what students should implement..." />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={s.label}>Difficulty</label>
+                <select value={newQ.difficulty} onChange={e => setNewQ({ ...newQ, difficulty: e.target.value })} style={{ ...s.input, width: 180 }}>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <p style={{ fontSize: 13, color: '#666', margin: '0 0 18px' }}>
+                You can add the answer, placeholder code, and test cases after creating the question.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="submit" style={s.btnBlue}>Create question</button>
+                <button type="button" onClick={() => setActive('questions')} style={s.btnGray}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Questions list */}
+        {active === 'questions' && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: '#333' }}>
+                Assignment questions <span style={{ fontSize: 15, fontWeight: 400, color: '#888' }}>({questions.length})</span>
+              </h1>
+              <button onClick={() => setActive('create')} style={s.btnBlue}>+ Add question</button>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>Loading...</div>
+            ) : questions.length === 0 ? (
+              <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#666' }}>
+                No questions yet.{' '}
+                <button onClick={() => setActive('create')} style={{ color: '#0f6cbf', background: 'none', border: 'none', cursor: 'pointer' }}>Create the first one.</button>
+              </div>
+            ) : (
+              questions.map((q, i) => (
+                <QuestionCard
+                  key={q._id}
+                  q={q}
+                  index={i}
+                  onUpdate={handleUpdate}
+                  onToggleVisibility={handleToggleVisibility}
+                />
+              ))
+            )}
+          </>
+        )}
+
+        {(active === 'grades' || active === 'participants') && (
+          <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#888' }}>
+            This section is not yet available.
+          </div>
         )}
       </div>
     </div>

@@ -1,44 +1,36 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle';
 
-const Navbar = ({ userRole }) => {
+const Navbar = ({ userName, userRole, onLogout }) => {
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-md transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center space-x-8">
-            <Link
-              to="/"
-              className="text-2xl font-bold text-blue-600 dark:text-blue-400"
-            >
-              📚 Code Learner LMS
-            </Link>
-            <div className="hidden md:flex space-x-6">
-              <Link
-                to="/"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/questions"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                Questions
-              </Link>
-            </div>
-          </div>
+    <div style={{ background: '#0f6cbf', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 100 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" rx="8" fill="white" fillOpacity="0.2"/>
+          <text x="50" y="68" textAnchor="middle" fontSize="52" fontWeight="bold" fill="white">M</text>
+        </svg>
+        <span style={{ color: 'white', fontSize: 18, fontWeight: 600 }}>Code Learner LMS</span>
+        <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 6px' }}>|</span>
+        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>CS101 – Introduction to MIPS Assembly</span>
+      </div>
 
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {userRole === 'teacher' ? '👨‍🏫 Teacher' : '👨‍🎓 Student'}
-            </span>
-            <ThemeToggle />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 600 }}>
+            {userName ? userName.charAt(0).toUpperCase() : '?'}
+          </div>
+          <div>
+            <div style={{ color: 'white', fontSize: 13, fontWeight: 500, lineHeight: 1.2 }}>{userName}</div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, lineHeight: 1.2 }}>{userRole === 'teacher' ? 'Teacher' : 'Student'}</div>
           </div>
         </div>
+        <button
+          onClick={onLogout}
+          style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '5px 14px', borderRadius: 4, fontSize: 13, cursor: 'pointer' }}
+        >
+          Log out
+        </button>
       </div>
-    </nav>
+    </div>
   );
 };
 
