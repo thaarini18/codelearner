@@ -100,11 +100,34 @@ const TestCaseEditor = ({ cases, onChange }) => {
 };
 
 /* ── Question card (expanded view with all sections) ── */
+const LANGUAGES = [
+  { value: 'mips',       label: 'MIPS Assembly' },
+  { value: 'c',          label: 'C' },
+  { value: 'cpp',        label: 'C++' },
+  { value: 'python',     label: 'Python' },
+  { value: 'java',       label: 'Java' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'csharp',     label: 'C#' },
+  { value: 'ruby',       label: 'Ruby' },
+];
+
+const PLACEHOLDERS = {
+  mips:       '# MIPS Assembly starter\n.data\n    # data section\n\n.text\nmain:\n    # your code here\n\n    li $v0, 10\n    syscall',
+  c:          '#include <stdio.h>\n\nint main() {\n    // your code here\n    return 0;\n}',
+  cpp:        '#include <iostream>\nusing namespace std;\n\nint main() {\n    // your code here\n    return 0;\n}',
+  python:     '# Python starter\ndef solution():\n    # your code here\n    pass\n\nif __name__ == "__main__":\n    solution()',
+  java:       'public class Solution {\n    public static void main(String[] args) {\n        // your code here\n    }\n}',
+  javascript: '// JavaScript starter\nfunction solution() {\n    // your code here\n}\n\nsolution();',
+  csharp:     'using System;\n\nclass Solution {\n    static void Main() {\n        // your code here\n    }\n}',
+  ruby:       '# Ruby starter\ndef solution\n  # your code here\nend\n\nsolution',
+};
+
 const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
-  const [tab, setTab] = useState('answer');           // 'answer' | 'placeholder' | 'testcases'
+  const [tab, setTab] = useState('answer');
   const [editingAnswer, setEditingAnswer] = useState(false);
   const [answerDraft, setAnswerDraft]     = useState(q.answer || '');
   const [placeholder, setPlaceholder]    = useState(q.placeholderCode || '');
+  const [language, setLanguage]           = useState(q.language || 'mips');
   const [testCases, setTestCases]         = useState(q.testCases || []);
   const [saving, setSaving]               = useState(false);
 
@@ -119,7 +142,7 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
 
   const savePlaceholder = async () => {
     setSaving(true);
-    const res = await axios.put(`/api/questions/${q._id}`, { placeholderCode: placeholder });
+    const res = await axios.put(`/api/questions/${q._id}`, { placeholderCode: placeholder, language });
     onUpdate(res.data);
     setSaving(false);
   };
@@ -150,9 +173,14 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 500, color: '#333', marginBottom: 4 }}>{q.title}</div>
           <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>{q.description}</div>
-          <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: DIFF_COLORS[q.difficulty]?.bg, color: DIFF_COLORS[q.difficulty]?.color }}>
-            {q.difficulty}
-          </span>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: DIFF_COLORS[q.difficulty]?.bg, color: DIFF_COLORS[q.difficulty]?.color }}>
+              {q.difficulty}
+            </span>
+            <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: '#e8f0fb', color: '#0f6cbf' }}>
+              {LANGUAGES.find(l => l.value === (q.language || 'mips'))?.label || 'MIPS Assembly'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -200,13 +228,29 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
           <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 12 }}>
             This code will be shown to students as the starting point for the question.
           </p>
-          <textarea
-            value={placeholder}
-            onChange={e => setPlaceholder(e.target.value)}
-            style={{ ...s.input, ...s.mono, height: 160, resize: 'vertical', marginBottom: 10 }}
-            placeholder={`# MIPS starter template\n.data\n    # your data section here\n\n.text\nmain:\n    # your code here\n\n    li $v0, 10     # exit syscall\n    syscall`}
-          />
-          <button onClick={savePlaceholder} disabled={saving} style={s.btnBlue}>{saving ? 'Saving…' : 'Save placeholder code'}</button>
+          <div style={{ marginBottom: 12 }}>
+            <label style={s.label}>Programming language</label>
+            <select
+              value={language}
+              onChange={e => {
+                setLanguage(e.target.value);
+                if (!placeholder.trim()) setPlaceholder(PLACEHOLDERS[e.target.value] || '');
+              }}
+              style={{ ...s.input, width: 220 }}
+            >
+              {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={s.label}>Placeholder code</label>
+            <textarea
+              value={placeholder}
+              onChange={e => setPlaceholder(e.target.value)}
+              style={{ ...s.input, ...s.mono, height: 180, resize: 'vertical' }}
+              placeholder={PLACEHOLDERS[language] || '// starter code'}
+            />
+          </div>
+          <button onClick={savePlaceholder} disabled={saving} style={s.btnBlue}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       )}
 

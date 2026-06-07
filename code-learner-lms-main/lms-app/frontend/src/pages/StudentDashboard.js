@@ -7,6 +7,11 @@ const DIFF_COLORS = {
   hard: { bg: '#f8d7da', color: '#721c24' },
 };
 
+const LANGUAGES = {
+  mips: 'MIPS Assembly', c: 'C', cpp: 'C++', python: 'Python',
+  java: 'Java', javascript: 'JavaScript', csharp: 'C#', ruby: 'Ruby',
+};
+
 const Sidebar = ({ active, setActive }) => {
   const items = [
     { id: 'questions', label: 'Course questions', icon: '📋' },
@@ -106,9 +111,14 @@ const StudentDashboard = ({ courseId = 'course-001' }) => {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 15, fontWeight: 500, color: '#333', marginBottom: 4 }}>{q.title}</div>
                       <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>{q.description}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: DIFF_COLORS[q.difficulty]?.bg || '#eee', color: DIFF_COLORS[q.difficulty]?.color || '#333' }}>
                         {q.difficulty}
                       </span>
+                      <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: '#e8f0fb', color: '#0f6cbf' }}>
+                        {LANGUAGES[q.language || 'mips'] || 'MIPS Assembly'}
+                      </span>
+                    </div>
                     </div>
                   </div>
 
