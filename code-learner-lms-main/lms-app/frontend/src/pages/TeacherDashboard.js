@@ -45,7 +45,7 @@ const Sidebar = ({ active, setActive }) => {
       <div style={{ padding: '6px 16px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Course</div>
       <div style={{ padding: '8px 16px', fontSize: 13, color: '#555' }}>
         <div style={{ fontWeight: 500, marginBottom: 2 }}>CS101</div>
-        <div style={{ color: '#888', fontSize: 12 }}>Introduction to MIPS Assembly</div>
+        <div style={{ color: '#888', fontSize: 12 }}>Programming Course</div>
       </div>
     </div>
   );
@@ -294,7 +294,7 @@ const TeacherDashboard = ({ courseId = 'course-001' }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [active, setActive]       = useState('questions');
-  const [newQ, setNewQ]           = useState({ title: '', description: '', difficulty: 'medium' });
+  const [newQ, setNewQ]           = useState({ title: '', description: '', difficulty: 'medium', language: '' });
   const [toast, setToast]         = useState(null);
 
   useEffect(() => { fetchQuestions(); }, [courseId]);
@@ -312,11 +312,11 @@ const TeacherDashboard = ({ courseId = 'course-001' }) => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!newQ.title.trim() || !newQ.description.trim()) return;
+    if (!newQ.title.trim() || !newQ.description.trim() || !newQ.language) return;
     try {
       const res = await axios.post('/api/questions', { ...newQ, courseId, createdBy: 'teacher-001' });
       setQuestions([res.data, ...questions]);
-      setNewQ({ title: '', description: '', difficulty: 'medium' });
+      setNewQ({ title: '', description: '', difficulty: 'medium', language: '' });
       setActive('questions');
       notify('Question created');
     } catch (e) { console.error(e); }
@@ -367,13 +367,27 @@ const TeacherDashboard = ({ courseId = 'course-001' }) => {
                 <label style={s.label}>Description / instructions</label>
                 <textarea value={newQ.description} onChange={e => setNewQ({ ...newQ, description: e.target.value })} style={{ ...s.input, height: 90, resize: 'vertical' }} placeholder="Describe what students should implement..." />
               </div>
-              <div style={{ marginBottom: 24 }}>
-                <label style={s.label}>Difficulty</label>
-                <select value={newQ.difficulty} onChange={e => setNewQ({ ...newQ, difficulty: e.target.value })} style={{ ...s.input, width: 180 }}>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
+              <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={s.label}>Difficulty</label>
+                  <select value={newQ.difficulty} onChange={e => setNewQ({ ...newQ, difficulty: e.target.value })} style={{ ...s.input }}>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={s.label}>Programming language <span style={{ color: '#dc3545' }}>*</span></label>
+                  <select
+                    value={newQ.language}
+                    onChange={e => setNewQ({ ...newQ, language: e.target.value })}
+                    style={{ ...s.input, borderColor: !newQ.language ? '#ffc107' : '#ced4da' }}
+                    required
+                  >
+                    <option value="">— Select a language —</option>
+                    {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                  </select>
+                </div>
               </div>
               <p style={{ fontSize: 13, color: '#666', margin: '0 0 18px' }}>
                 You can add the answer, placeholder code, and test cases after creating the question.

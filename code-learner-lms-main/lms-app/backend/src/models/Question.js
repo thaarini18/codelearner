@@ -12,7 +12,7 @@ const questionSchema = new mongoose.Schema(
     description: { type: String, required: true },
     answer: { type: String, default: null },
     placeholderCode: { type: String, default: '' },
-    language: { type: String, default: 'mips' },
+    language: { type: String, default: '' },
     testCases: { type: [testCaseSchema], default: [] },
     isAnswerVisible: { type: Boolean, default: false },
     courseId: { type: String, required: true },
