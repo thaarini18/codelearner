@@ -1,4 +1,8 @@
 const axios     = require('axios');
+const { spawn } = require('child_process');
+const fs        = require('fs');
+const path      = require('path');
+const os        = require('os');
 const Submission = require('../models/Submission');
 const Question   = require('../models/Question');
 const Grade      = require('../models/Grade');
@@ -16,11 +20,60 @@ const JUDGE0_LANG = {
   ruby:       72,   // Ruby 2.7.0
 };
 
-// Run code for a single test case via Judge0
+// ── MIPS execution via local SPIM ──
+function runMips(code, stdin = '') {
+  return new Promise((resolve) => {
+    const tmpFile = path.join(os.tmpdir(), `mips_${Date.now()}_${Math.random().toString(36).slice(2)}.asm`);
+    fs.writeFileSync(tmpFile, code);
+
+    let stdout = '';
+    let stderr = '';
+    const proc = spawn('spim', ['-f', tmpFile], { timeout: 10000 });
+
+    proc.stdin.write(stdin || '');
+    proc.stdin.end();
+    proc.stdout.on('data', d => { stdout += d.toString(); });
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+
+    const cleanup = () => { try { fs.unlinkSync(tmpFile); } catch (_) {} };
+
+    proc.on('close', () => {
+      cleanup();
+      // Strip SPIM header lines (everything up to and including the last "Loaded:" line)
+      const lines = stdout.split('\n');
+      const lastLoaded = lines.reduce((acc, l, i) => l.startsWith('Loaded:') ? i : acc, -1);
+      const clean = lines.slice(lastLoaded + 1).join('\n').trim();
+
+      // SPIM prints assembly errors in stdout prefixed with "spim:"
+      const spimErr = lines.find(l => /^spim:/i.test(l));
+      if (spimErr && !clean) {
+        resolve({ output: null, error: spimErr });
+      } else {
+        resolve({ output: clean, error: null });
+      }
+    });
+
+    proc.on('error', (err) => {
+      cleanup();
+      if (err.code === 'ENOENT') {
+        resolve({ output: null, error: 'SPIM is not installed. Run: brew install spim' });
+      } else {
+        resolve({ output: null, error: err.message });
+      }
+    });
+  });
+}
+
+// Run code for a single test case via Judge0 (or SPIM for MIPS)
 async function runCode(language, code, stdin = '') {
+  // MIPS → run locally via SPIM
+  if (language === 'mips') {
+    return runMips(code, stdin);
+  }
+
   const langId = JUDGE0_LANG[language];
   if (!langId) {
-    return { output: null, error: `Language "${language}" execution is not supported (MIPS requires SPIM/MARS simulator).` };
+    return { output: null, error: `Language "${language}" is not supported.` };
   }
   try {
     const res = await axios.post(JUDGE0_URL, {
