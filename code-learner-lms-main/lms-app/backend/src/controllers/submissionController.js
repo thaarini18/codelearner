@@ -3,39 +3,52 @@ const Submission = require('../models/Submission');
 const Question   = require('../models/Question');
 const Grade      = require('../models/Grade');
 
-const PISTON_URL = 'https://emkc.org/api/v2/piston/execute';
+const JUDGE0_URL = 'https://ce.judge0.com/submissions?base64_encoded=false&wait=true';
 
-// Map our language keys → Piston runtime identifiers
-const PISTON_LANG = {
-  python:     { language: 'python',     version: '3.10.0' },
-  javascript: { language: 'javascript', version: '18.15.0' },
-  c:          { language: 'c',          version: '10.2.0' },
-  cpp:        { language: 'c++',        version: '10.2.0' },
-  java:       { language: 'java',       version: '15.0.2' },
-  csharp:     { language: 'csharp',     version: '6.12.0' },
-  ruby:       { language: 'ruby',       version: '3.0.1'  },
+// Judge0 language IDs
+const JUDGE0_LANG = {
+  python:     71,   // Python 3.8.1
+  javascript: 63,   // Node.js 12.14.0
+  c:          50,   // C (GCC 9.2.0)
+  cpp:        54,   // C++ (GCC 9.2.0)
+  java:       62,   // Java (OpenJDK 13.0.1)
+  csharp:     51,   // C# (Mono 6.6.0)
+  ruby:       72,   // Ruby 2.7.0
 };
 
-// Run code for a single test case via Piston
+// Run code for a single test case via Judge0
 async function runCode(language, code, stdin = '') {
-  const runtime = PISTON_LANG[language];
-  if (!runtime) {
+  const langId = JUDGE0_LANG[language];
+  if (!langId) {
     return { output: null, error: `Language "${language}" execution is not supported (MIPS requires SPIM/MARS simulator).` };
   }
   try {
-    const res = await axios.post(PISTON_URL, {
-      language: runtime.language,
-      version:  runtime.version,
-      files:    [{ content: code }],
-      stdin,
-      run_timeout: 5000,
-    }, { timeout: 10000 });
+    const res = await axios.post(JUDGE0_URL, {
+      source_code: code,
+      language_id: langId,
+      stdin:       stdin || '',
+      cpu_time_limit: 5,
+      memory_limit:   128000,
+    }, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000,
+    });
 
-    const run = res.data.run;
-    if (run.code !== 0 && run.stderr) {
-      return { output: null, error: run.stderr.trim() };
+    const { stdout, stderr, compile_output, status } = res.data;
+
+    // Compilation error
+    if (compile_output && compile_output.trim()) {
+      return { output: null, error: compile_output.trim() };
     }
-    return { output: (run.stdout || '').trim(), error: null };
+    // Runtime error
+    if (stderr && stderr.trim()) {
+      return { output: null, error: stderr.trim() };
+    }
+    // Time limit / other status errors
+    if (status && status.id > 3) {
+      return { output: null, error: status.description };
+    }
+    return { output: (stdout || '').trim(), error: null };
   } catch (err) {
     return { output: null, error: err.message };
   }
