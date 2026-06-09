@@ -4,6 +4,7 @@ const testCaseSchema = new mongoose.Schema({
   label: { type: String, default: '' },
   input: { type: String, default: '' },
   expectedOutput: { type: String, default: '' },
+  isHidden: { type: Boolean, default: false },
 }, { _id: true });
 
 const questionSchema = new mongoose.Schema(

@@ -3,7 +3,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const questionRoutes = require('./routes/questionRoutes');
+const questionRoutes    = require('./routes/questionRoutes');
+const submissionRoutes  = require('./routes/submissionRoutes');
+const gradeRoutes       = require('./routes/gradeRoutes');
+const plagiarismRoutes  = require('./routes/plagiarismRoutes');
 
 const app = express();
 
@@ -26,7 +29,10 @@ mongoose
   });
 
 // Routes
-app.use('/api/questions', questionRoutes);
+app.use('/api/questions',   questionRoutes);
+app.use('/api/submissions', submissionRoutes);
+app.use('/api/grades',      gradeRoutes);
+app.use('/api/plagiarism',  plagiarismRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

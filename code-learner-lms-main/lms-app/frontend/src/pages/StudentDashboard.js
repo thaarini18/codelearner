@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const DIFF_COLORS = {
@@ -32,31 +32,82 @@ const PLACEHOLDERS = {
 };
 
 const s = {
-  input: { width: '100%', padding: '7px 11px', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' },
-  mono:  { fontFamily: 'SFMono-Regular, Consolas, monospace', fontSize: 12 },
+  input:   { width: '100%', padding: '7px 11px', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' },
+  mono:    { fontFamily: 'SFMono-Regular, Consolas, monospace', fontSize: 12 },
+  btnBlue: { padding: '7px 16px', background: '#0f6cbf', color: '#fff', border: 'none', borderRadius: 4, fontSize: 13, fontWeight: 500, cursor: 'pointer' },
+  btnGray: { padding: '7px 16px', background: '#fff', color: '#333', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13, cursor: 'pointer' },
 };
 
-/* ── Per-question code editor with language picker ── */
-const CodeEditor = ({ questionLanguage, placeholderCode }) => {
-  // Start with the teacher's chosen language if available, otherwise nothing selected
-  const [lang, setLang]   = useState(questionLanguage || '');
-  const [code, setCode]   = useState('');
+/* ── Student name gate ── */
+const StudentNameGate = ({ onConfirm }) => {
+  const [name, setName] = useState('');
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f2f2f2' }}>
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #dee2e6', padding: 40, width: 380, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>💻</div>
+        <h2 style={{ margin: '0 0 8px', fontSize: 20, color: '#333' }}>Welcome to CS101</h2>
+        <p style={{ fontSize: 13, color: '#666', margin: '0 0 24px' }}>Enter your name to continue. Your submissions and grades will be saved under this name.</p>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && name.trim() && onConfirm(name.trim())}
+          placeholder="Your name"
+          style={{ ...s.input, marginBottom: 16, fontSize: 15, padding: '10px 14px' }}
+          autoFocus
+        />
+        <button
+          onClick={() => name.trim() && onConfirm(name.trim())}
+          style={{ ...s.btnBlue, width: '100%', padding: '10px 0', fontSize: 15 }}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+};
 
-  // When user picks a language, pre-fill with placeholder if editor is empty
+/* ── Per-question code editor + Run button ── */
+const CodeEditor = ({ question, studentId, courseId }) => {
+  const [lang, setLang]         = useState(question.language || '');
+  const [code, setCode]         = useState('');
+  const [running, setRunning]   = useState(false);
+  const [result, setResult]     = useState(null);
+  const [revealed, setRevealed] = useState(false);
+
   const handleLangChange = (val) => {
     setLang(val);
     if (!code.trim()) {
-      // Use the question's placeholder code if the language matches, otherwise the generic template
-      const starter = (val === questionLanguage && placeholderCode)
-        ? placeholderCode
-        : (PLACEHOLDERS[val] || '');
-      setCode(starter);
+      setCode((val === question.language && question.placeholderCode)
+        ? question.placeholderCode
+        : (PLACEHOLDERS[val] || ''));
+    }
+  };
+
+  const runCode = async () => {
+    if (!lang) { alert('Please select a language first.'); return; }
+    if (!code.trim()) { alert('Please write some code first.'); return; }
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await axios.post('/api/submissions', {
+        questionId: question._id,
+        courseId,
+        studentId,
+        language: lang,
+        code,
+      });
+      setResult(res.data);
+    } catch (e) {
+      setResult({ executionError: e.response?.data?.error || e.message, testResults: [] });
+    } finally {
+      setRunning(false);
     }
   };
 
   return (
     <div style={{ padding: '14px 20px', borderTop: '1px solid #f0f0f0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      {/* Language + Run */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 }}>Your code</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label style={{ fontSize: 12, color: '#666' }}>Language:</label>
@@ -66,12 +117,19 @@ const CodeEditor = ({ questionLanguage, placeholderCode }) => {
             style={{ ...s.input, width: 170, padding: '4px 8px', fontSize: 12 }}
           >
             <option value="">— Choose language —</option>
-            {LANGUAGES.map(l => (
-              <option key={l.value} value={l.value}>{l.label}</option>
-            ))}
+            {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
+          <button
+            onClick={runCode}
+            disabled={running || !lang || !code.trim()}
+            style={{ ...s.btnBlue, padding: '5px 16px', fontSize: 12, opacity: (running || !lang || !code.trim()) ? 0.6 : 1 }}
+          >
+            {running ? '⏳ Running…' : '▶ Run'}
+          </button>
         </div>
       </div>
+
+      {/* Code textarea */}
       <textarea
         value={code}
         onChange={e => setCode(e.target.value)}
@@ -84,38 +142,191 @@ const CodeEditor = ({ questionLanguage, placeholderCode }) => {
           padding: '10px 12px',
         }}
       />
-      {!lang && (
-        <div style={{ fontSize: 11, color: '#aaa', marginTop: 5 }}>
-          Choose a language to get a starter template.
+      {!lang && <div style={{ fontSize: 11, color: '#aaa', marginTop: 5 }}>Choose a language to get a starter template.</div>}
+
+      {/* Test results */}
+      {result && (
+        <div style={{ marginTop: 14 }}>
+          {result.executionError && (
+            <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 4, padding: '10px 14px', marginBottom: 10, fontSize: 13 }}>
+              <strong>⚠ Execution error:</strong>
+              <pre style={{ ...s.mono, margin: '6px 0 0', whiteSpace: 'pre-wrap', color: '#856404' }}>{result.executionError}</pre>
+            </div>
+          )}
+          {result.testResults && result.testResults.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 }}>Test results</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: result.score >= 80 ? '#155724' : result.score >= 50 ? '#856404' : '#721c24' }}>
+                  {result.totalPassed}/{result.totalCases} passed — {result.score}%
+                </span>
+              </div>
+              {result.testResults.map((tr, i) => (
+                <div key={i} style={{
+                  border: `1px solid ${tr.passed ? '#c3e6cb' : '#f5c6cb'}`,
+                  background: tr.passed ? '#f0fff4' : '#fff5f5',
+                  borderRadius: 4, padding: '10px 14px', marginBottom: 8,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>{tr.label || `Test ${i + 1}`}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: tr.passed ? '#155724' : '#721c24' }}>
+                      {tr.passed ? '✓ Passed' : '✗ Failed'}
+                    </span>
+                  </div>
+                  {!tr.isHidden && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+                      <div>
+                        <div style={{ color: '#888', marginBottom: 2 }}>Input</div>
+                        <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.input || '(none)'}</pre>
+                      </div>
+                      <div>
+                        <div style={{ color: '#888', marginBottom: 2 }}>Expected</div>
+                        <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.expectedOutput || '(any)'}</pre>
+                      </div>
+                      {!tr.passed && (
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <div style={{ color: '#888', marginBottom: 2 }}>Your output</div>
+                          <pre style={{ ...s.mono, background: '#fff0f0', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap', color: '#721c24' }}>{tr.actualOutput || '(no output)'}</pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Answer reveal */}
+      {question.isAnswerVisible && question.answer && (
+        <div style={{ marginTop: 10 }}>
+          <button onClick={() => setRevealed(r => !r)} style={{ ...s.btnGray, fontSize: 12, padding: '5px 12px' }}>
+            {revealed ? '▲ Hide answer' : '▼ Show teacher answer'}
+          </button>
+          {revealed && (
+            <div style={{ marginTop: 8, background: '#f0fff4', border: '1px solid #c3e6cb', borderRadius: 4, padding: '12px 16px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#155724', marginBottom: 6 }}>✓ Teacher's answer</div>
+              <pre style={{ ...s.mono, margin: 0, color: '#333', whiteSpace: 'pre-wrap' }}>{question.answer}</pre>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
+/* ── Submission history tab ── */
+const HistoryView = ({ studentId, courseId }) => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`/api/submissions/student/${studentId}?courseId=${courseId}`)
+      .then(r => setHistory(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [studentId, courseId]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>Loading history…</div>;
+  if (!history.length) return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#888' }}>
+      No submissions yet. Run your code on a question to see history here.
+    </div>
+  );
+
+  return (
+    <div>
+      {history.map((sub, i) => (
+        <div key={i} style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0' }}>
+            <div>
+              <span style={{ fontWeight: 500, fontSize: 14, color: '#333' }}>{sub.questionId?.title || 'Question'}</span>
+              <span style={{ marginLeft: 10, fontSize: 12, padding: '2px 8px', borderRadius: 10, background: '#e8f0fb', color: '#0f6cbf' }}>
+                {LANG_LABEL[sub.language] || sub.language}
+              </span>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: sub.score >= 80 ? '#155724' : sub.score >= 50 ? '#856404' : '#721c24' }}>{sub.score}%</div>
+              <div style={{ fontSize: 11, color: '#999' }}>{new Date(sub.submittedAt).toLocaleString()}</div>
+            </div>
+          </div>
+          <div style={{ padding: '8px 16px', fontSize: 12, color: '#666' }}>
+            {sub.totalPassed}/{sub.totalCases} test cases passed
+            {sub.executionError && <span style={{ color: '#dc3545', marginLeft: 12 }}>⚠ {sub.executionError}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ── My grades tab ── */
+const MyGrades = ({ studentId, courseId }) => {
+  const [grade, setGrade]     = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`/api/grades/student/${studentId}?courseId=${courseId}`)
+      .then(r => setGrade(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [studentId, courseId]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>Loading grades…</div>;
+  if (!grade || !grade.grades || grade.grades.length === 0) return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#888' }}>
+      No grades yet. Run your code to earn scores.
+    </div>
+  );
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
+      <div style={{ background: '#0f6cbf', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>My Grades</h2>
+        <span style={{ color: '#fff', fontWeight: 700, fontSize: 20 }}>{grade.totalScore}%</span>
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: '#f8f9fa' }}>
+            <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Question</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Attempts</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Best score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {grade.grades.map((g, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+              <td style={{ padding: '10px 16px' }}>{g.questionTitle}</td>
+              <td style={{ padding: '10px 16px', color: '#555' }}>{g.attempts}</td>
+              <td style={{ padding: '10px 16px', fontWeight: 600, color: g.bestScore >= 80 ? '#155724' : g.bestScore >= 50 ? '#856404' : '#721c24' }}>{g.bestScore}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 /* ── Sidebar ── */
-const Sidebar = ({ active, setActive }) => {
+const Sidebar = ({ active, setActive, studentName, onChangeName }) => {
   const items = [
     { id: 'questions', label: 'Course questions', icon: '📋' },
-    { id: 'resources', label: 'Resources',        icon: '📁' },
-    { id: 'grades',    label: 'My grades',        icon: '📊' },
+    { id: 'history',   label: 'My submissions',   icon: '📁' },
+    { id: 'grades',    label: 'My grades',         icon: '📊' },
   ];
   return (
     <div style={{ width: 220, background: 'white', borderRight: '1px solid #dee2e6', minHeight: 'calc(100vh - 52px)', flexShrink: 0 }}>
       <div style={{ padding: '16px 16px 8px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Navigation</div>
       {items.map(item => (
-        <button
-          key={item.id}
-          onClick={() => setActive(item.id)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px',
-            background: active === item.id ? '#e8f0fb' : 'transparent',
-            borderLeft: active === item.id ? '4px solid #0f6cbf' : '4px solid transparent',
-            border: 'none', cursor: 'pointer',
-            fontSize: 14, color: active === item.id ? '#0f6cbf' : '#333',
-            fontWeight: active === item.id ? 500 : 400, textAlign: 'left',
-          }}
-        >
+        <button key={item.id} onClick={() => setActive(item.id)} style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px',
+          background: active === item.id ? '#e8f0fb' : 'transparent',
+          borderLeft: active === item.id ? '4px solid #0f6cbf' : '4px solid transparent',
+          border: 'none', cursor: 'pointer', fontSize: 14,
+          color: active === item.id ? '#0f6cbf' : '#333',
+          fontWeight: active === item.id ? 500 : 400, textAlign: 'left',
+        }}>
           <span>{item.icon}</span>{item.label}
         </button>
       ))}
@@ -125,33 +336,51 @@ const Sidebar = ({ active, setActive }) => {
         <div style={{ fontWeight: 500, marginBottom: 2 }}>CS101</div>
         <div style={{ color: '#888', fontSize: 12 }}>Programming Course</div>
       </div>
+      <div style={{ margin: '12px 12px', borderTop: '1px solid #dee2e6' }} />
+      <div style={{ padding: '8px 16px' }}>
+        <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Logged in as</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 6 }}>{studentName}</div>
+        <button onClick={onChangeName} style={{ fontSize: 11, color: '#0f6cbf', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          Change name
+        </button>
+      </div>
     </div>
   );
 };
 
 /* ── Main Dashboard ── */
 const StudentDashboard = ({ courseId = 'course-001' }) => {
-  const [questions, setQuestions]       = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [revealed, setRevealed]         = useState({});
+  const [studentId, setStudentId]         = useState(() => localStorage.getItem('studentName') || '');
+  const [questions, setQuestions]         = useState([]);
+  const [loading, setLoading]             = useState(true);
   const [activeSection, setActiveSection] = useState('questions');
 
-  useEffect(() => { fetchQuestions(); }, [courseId]);
+  const handleNameConfirm = (name) => {
+    localStorage.setItem('studentName', name);
+    setStudentId(name);
+  };
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true);
       const res = await axios.get(`/api/questions/course/${courseId}`);
       setQuestions(res.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
+  }, [courseId]);
 
-  const toggleReveal = (id) => setRevealed(prev => ({ ...prev, [id]: !prev[id] }));
+  useEffect(() => { if (studentId) fetchQuestions(); }, [studentId, fetchQuestions]);
+
+  if (!studentId) return <StudentNameGate onConfirm={handleNameConfirm} />;
 
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', background: '#f2f2f2' }}>
-      <Sidebar active={activeSection} setActive={setActiveSection} />
+      <Sidebar
+        active={activeSection}
+        setActive={setActiveSection}
+        studentName={studentId}
+        onChangeName={() => { localStorage.removeItem('studentName'); setStudentId(''); }}
+      />
 
       <div style={{ flex: 1, padding: 24 }}>
         <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
@@ -159,20 +388,18 @@ const StudentDashboard = ({ courseId = 'course-001' }) => {
           <span style={{ margin: '0 6px' }}>›</span>
           <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>CS101</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span>Course questions</span>
+          <span>{activeSection === 'history' ? 'My submissions' : activeSection === 'grades' ? 'My grades' : 'Course questions'}</span>
         </div>
 
         {activeSection === 'questions' && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Course questions</h1>
-
-            {/* Course banner */}
             <div style={{ background: 'white', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 16, overflow: 'hidden' }}>
               <div style={{ background: '#0f6cbf', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 20 }}>💻</span>
                 <div>
                   <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>CS101 – Programming Course</div>
-                  <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Choose your language per question. Your teacher controls answer visibility.</div>
+                  <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Choose your language per question. Click Run to check your solution against test cases.</div>
                 </div>
               </div>
             </div>
@@ -186,8 +413,6 @@ const StudentDashboard = ({ courseId = 'course-001' }) => {
             ) : (
               questions.map((q, i) => (
                 <div key={q._id} style={{ background: 'white', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 12, overflow: 'hidden' }}>
-
-                  {/* Question header */}
                   <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 14, borderBottom: '1px solid #f0f0f0' }}>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#0f6cbf', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14, flexShrink: 0 }}>
                       {i + 1}
@@ -204,51 +429,33 @@ const StudentDashboard = ({ courseId = 'course-001' }) => {
                             {LANG_LABEL[q.language] || q.language}
                           </span>
                         )}
+                        {q.testCases && q.testCases.length > 0 && (
+                          <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, fontWeight: 500, background: '#e8f8f5', color: '#0d9488' }}>
+                            {q.testCases.length} test case{q.testCases.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-
-                  {/* Per-question code editor with language picker */}
-                  <CodeEditor
-                    questionLanguage={q.language}
-                    placeholderCode={q.placeholderCode}
-                  />
-
-                  {/* Answer reveal */}
-                  <div style={{ padding: '12px 20px', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
-                    {q.isAnswerVisible && q.answer ? (
-                      <div>
-                        <button
-                          onClick={() => toggleReveal(q._id)}
-                          style={{ padding: '7px 16px', background: revealed[q._id] ? '#e8f0fb' : '#0f6cbf', color: revealed[q._id] ? '#0f6cbf' : 'white', border: revealed[q._id] ? '1px solid #0f6cbf' : 'none', borderRadius: 4, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
-                        >
-                          {revealed[q._id] ? '▲ Hide answer' : '▼ Show answer'}
-                        </button>
-                        {revealed[q._id] && (
-                          <div style={{ marginTop: 12, background: '#f0fff4', border: '1px solid #c3e6cb', borderRadius: 4, padding: '12px 16px' }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#155724', marginBottom: 6 }}>✓ Teacher's answer</div>
-                            <div style={{ fontFamily: 'monospace', fontSize: 13, color: '#333', whiteSpace: 'pre-wrap' }}>{q.answer}</div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#888', fontSize: 13 }}>
-                        <span>🔒</span>
-                        <span>The teacher hasn't released the answer yet.</span>
-                      </div>
-                    )}
-                  </div>
-
+                  <CodeEditor question={q} studentId={studentId} courseId={courseId} />
                 </div>
               ))
             )}
           </>
         )}
 
-        {(activeSection === 'resources' || activeSection === 'grades') && (
-          <div style={{ background: 'white', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#888' }}>
-            This section is not yet available.
-          </div>
+        {activeSection === 'history' && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Submissions</h1>
+            <HistoryView studentId={studentId} courseId={courseId} />
+          </>
+        )}
+
+        {activeSection === 'grades' && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Grades</h1>
+            <MyGrades studentId={studentId} courseId={courseId} />
+          </>
         )}
       </div>
     </div>

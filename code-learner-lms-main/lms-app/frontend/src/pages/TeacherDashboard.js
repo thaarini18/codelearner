@@ -21,10 +21,10 @@ const s = {
 /* ── Sidebar ── */
 const Sidebar = ({ active, setActive }) => {
   const items = [
-    { id: 'questions', label: 'Assignment questions', icon: '📋' },
-    { id: 'create',    label: 'Create question',      icon: '✏️'  },
-    { id: 'grades',    label: 'Grades',               icon: '📊' },
-    { id: 'participants', label: 'Participants',      icon: '👥' },
+    { id: 'questions',   label: 'Assignment questions', icon: '📋' },
+    { id: 'create',      label: 'Create question',      icon: '✏️'  },
+    { id: 'grades',      label: 'Gradebook',            icon: '📊' },
+    { id: 'plagiarism',  label: 'Plagiarism check',     icon: '🔍' },
   ];
   return (
     <div style={{ width: 220, background: '#fff', borderRight: '1px solid #dee2e6', minHeight: 'calc(100vh - 52px)', flexShrink: 0 }}>
@@ -289,6 +289,141 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
   );
 };
 
+/* ── Gradebook view ── */
+const GradebookView = ({ courseId }) => {
+  const [grades, setGrades]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`/api/grades/course/${courseId}`)
+      .then(r => setGrades(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [courseId]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>Loading gradebook…</div>;
+  if (!grades.length) return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#888' }}>
+      No submissions yet. Grades appear here once students run their code.
+    </div>
+  );
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
+      <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
+        <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Gradebook — CS101</h2>
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: '#f8f9fa' }}>
+            <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Student</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Questions attempted</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Overall score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {grades.map((g, i) => (
+            <React.Fragment key={i}>
+              <tr style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <td style={{ padding: '10px 16px', fontWeight: 500 }}>{g.studentId}</td>
+                <td style={{ padding: '10px 16px', color: '#555' }}>{g.grades.length}</td>
+                <td style={{ padding: '10px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1, background: '#e9ecef', borderRadius: 4, height: 8, maxWidth: 120 }}>
+                      <div style={{ width: `${g.totalScore}%`, background: g.totalScore >= 80 ? '#28a745' : g.totalScore >= 50 ? '#ffc107' : '#dc3545', height: 8, borderRadius: 4 }} />
+                    </div>
+                    <span style={{ fontWeight: 600, color: g.totalScore >= 80 ? '#155724' : g.totalScore >= 50 ? '#856404' : '#721c24' }}>{g.totalScore}%</span>
+                  </div>
+                </td>
+              </tr>
+              {g.grades.map((qg, j) => (
+                <tr key={j} style={{ background: '#f9f9ff', borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '6px 16px 6px 36px', color: '#888', fontSize: 12 }}>↳ {qg.questionTitle}</td>
+                  <td style={{ padding: '6px 16px', color: '#888', fontSize: 12 }}>{qg.attempts} attempt{qg.attempts !== 1 ? 's' : ''}</td>
+                  <td style={{ padding: '6px 16px', fontSize: 12, fontWeight: 500, color: qg.bestScore >= 80 ? '#155724' : qg.bestScore >= 50 ? '#856404' : '#721c24' }}>{qg.bestScore}%</td>
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+/* ── Plagiarism view ── */
+const PlagiarismView = ({ courseId }) => {
+  const [result, setResult]     = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [threshold, setThreshold] = useState(70);
+
+  const run = () => {
+    setLoading(true);
+    axios.get(`/api/plagiarism/course/${courseId}?threshold=${threshold}`)
+      .then(r => setResult(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <div>
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 16, overflow: 'hidden' }}>
+        <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
+          <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Plagiarism Detection</h2>
+        </div>
+        <div style={{ padding: 20 }}>
+          <p style={{ fontSize: 13, color: '#555', margin: '0 0 16px' }}>
+            Compares the best submission per student using Jaccard token similarity. Flags pairs above the threshold.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 500 }}>Similarity threshold:</label>
+            <input type="number" min={0} max={100} value={threshold} onChange={e => setThreshold(e.target.value)}
+              style={{ width: 70, padding: '6px 10px', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13 }} />
+            <span style={{ fontSize: 13, color: '#666' }}>%</span>
+            <button onClick={run} disabled={loading} style={s.btnBlue}>{loading ? 'Checking…' : 'Run check'}</button>
+          </div>
+        </div>
+      </div>
+
+      {result && (
+        result.pairs.length === 0 ? (
+          <div style={{ background: '#d4edda', border: '1px solid #c3e6cb', borderRadius: 6, padding: 20, color: '#155724', fontSize: 14 }}>
+            ✓ No suspicious pairs found above {threshold}% similarity across {result.pairs.length} comparisons.
+          </div>
+        ) : (
+          <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', background: '#fff3cd', borderBottom: '1px solid #dee2e6', fontSize: 13, color: '#856404', fontWeight: 500 }}>
+              ⚠ {result.pairs.length} suspicious pair{result.pairs.length !== 1 ? 's' : ''} found
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8f9fa' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Student A</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Student B</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Question</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Similarity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.pairs.map((p, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '10px 16px' }}>{p.studentA}</td>
+                    <td style={{ padding: '10px 16px' }}>{p.studentB}</td>
+                    <td style={{ padding: '10px 16px', color: '#666', fontSize: 12 }}>{p.questionId}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span style={{ fontWeight: 700, color: p.similarity >= 90 ? '#dc3545' : '#856404' }}>{p.similarity}%</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+    </div>
+  );
+};
+
 /* ── Main dashboard ── */
 const TeacherDashboard = ({ courseId = 'course-001' }) => {
   const [questions, setQuestions] = useState([]);
@@ -431,10 +566,18 @@ const TeacherDashboard = ({ courseId = 'course-001' }) => {
           </>
         )}
 
-        {(active === 'grades' || active === 'participants') && (
-          <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center', color: '#888' }}>
-            This section is not yet available.
-          </div>
+        {active === 'grades' && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Gradebook</h1>
+            <GradebookView courseId={courseId} />
+          </>
+        )}
+
+        {active === 'plagiarism' && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Plagiarism Check</h1>
+            <PlagiarismView courseId={courseId} />
+          </>
         )}
       </div>
     </div>
