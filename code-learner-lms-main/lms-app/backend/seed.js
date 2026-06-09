@@ -18,7 +18,9 @@ const questions = [
     description: 'Use syscall to print the string "Hello, World!" to stdout.',
     difficulty: 'easy',
     language: 'mips',
-    testCases: [],   // MIPS cannot be run by Piston; execution is manual via SPIM/MARS
+    testCases: [
+      { label: 'Output check', input: '', expectedOutput: 'Hello, World!', isHidden: false },
+    ],
     answer:
 `.data
 msg: .asciiz "Hello, World!\\n"
@@ -42,16 +44,21 @@ main:
   },
   {
     title: 'MIPS: Add two numbers',
-    description: 'Load 5 into $t0 and 3 into $t1, add them, and store the result in $t2.',
+    description: 'Load 5 into $t0 and 3 into $t1, add them into $t2, then print the result using syscall 1.',
     difficulty: 'easy',
     language: 'mips',
-    testCases: [],
+    testCases: [
+      { label: 'Print sum (8)', input: '', expectedOutput: '8', isHidden: false },
+    ],
     answer:
 `.text
 main:
     li  $t0, 5
     li  $t1, 3
     add $t2, $t0, $t1   # $t2 = 8
+    li  $v0, 1
+    move $a0, $t2
+    syscall             # print 8
     li  $v0, 10
     syscall`,
     placeholderCode:

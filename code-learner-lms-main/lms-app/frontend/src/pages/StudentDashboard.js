@@ -183,12 +183,15 @@ const CodeEditor = ({ question, studentId, courseId }) => {
                         <div style={{ color: '#888', marginBottom: 2 }}>Expected</div>
                         <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.expectedOutput || '(any)'}</pre>
                       </div>
-                      {!tr.passed && (
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <div style={{ color: '#888', marginBottom: 2 }}>Your output</div>
-                          <pre style={{ ...s.mono, background: '#fff0f0', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap', color: '#721c24' }}>{tr.actualOutput || '(no output)'}</pre>
-                        </div>
-                      )}
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <div style={{ color: '#888', marginBottom: 2 }}>Your output</div>
+                        <pre style={{
+                          ...s.mono,
+                          background: tr.passed ? '#f0fff4' : '#fff0f0',
+                          padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap',
+                          color: tr.passed ? '#155724' : '#721c24',
+                        }}>{tr.actualOutput || '(no output)'}</pre>
+                      </div>
                     </div>
                   )}
                 </div>
