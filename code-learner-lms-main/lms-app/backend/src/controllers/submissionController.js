@@ -110,9 +110,12 @@ async function runCode(language, code, stdin = '') {
 // POST /api/submissions  — run code + save submission
 exports.submitCode = async (req, res) => {
   try {
-    const { questionId, courseId, studentId, language, code } = req.body;
-    if (!questionId || !studentId || !language || !code) {
-      return res.status(400).json({ error: 'questionId, studentId, language and code are required.' });
+    const { questionId, courseId, language, code } = req.body;
+    // Identity comes from the authenticated JWT, not the request body,
+    // so a student can't submit code under another student's name.
+    const studentId = req.user.name;
+    if (!questionId || !language || !code) {
+      return res.status(400).json({ error: 'questionId, language and code are required.' });
     }
 
     const question = await Question.findById(questionId);
@@ -197,6 +200,10 @@ exports.getSubmissions = async (req, res) => {
 // GET /api/submissions/student/:studentId?courseId=xxx
 exports.getStudentHistory = async (req, res) => {
   try {
+    // Students may only view their own submission history; teachers can view anyone's.
+    if (req.user.role === 'student' && req.user.name !== req.params.studentId) {
+      return res.status(403).json({ error: 'You can only view your own submission history.' });
+    }
     const filter = { studentId: req.params.studentId };
     if (req.query.courseId) filter.courseId = req.query.courseId;
     const subs = await Submission.find(filter)

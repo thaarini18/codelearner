@@ -14,6 +14,10 @@ exports.getCourseGrades = async (req, res) => {
 // GET /api/grades/student/:studentId?courseId=xxx
 exports.getStudentGrade = async (req, res) => {
   try {
+    // Students may only view their own grade; teachers can view anyone's.
+    if (req.user.role === 'student' && req.user.name !== req.params.studentId) {
+      return res.status(403).json({ error: 'You can only view your own grade.' });
+    }
     const filter = { studentId: req.params.studentId };
     if (req.query.courseId) filter.courseId = req.query.courseId;
     const grade = await Grade.findOne(filter);

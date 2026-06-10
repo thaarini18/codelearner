@@ -38,34 +38,6 @@ const s = {
   btnGray: { padding: '7px 16px', background: '#fff', color: '#333', border: '1px solid #ced4da', borderRadius: 4, fontSize: 13, cursor: 'pointer' },
 };
 
-/* ── Student name gate ── */
-const StudentNameGate = ({ onConfirm }) => {
-  const [name, setName] = useState('');
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f2f2f2' }}>
-      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #dee2e6', padding: 40, width: 380, textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>💻</div>
-        <h2 style={{ margin: '0 0 8px', fontSize: 20, color: '#333' }}>Welcome to CS101</h2>
-        <p style={{ fontSize: 13, color: '#666', margin: '0 0 24px' }}>Enter your name to continue. Your submissions and grades will be saved under this name.</p>
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && name.trim() && onConfirm(name.trim())}
-          placeholder="Your name"
-          style={{ ...s.input, marginBottom: 16, fontSize: 15, padding: '10px 14px' }}
-          autoFocus
-        />
-        <button
-          onClick={() => name.trim() && onConfirm(name.trim())}
-          style={{ ...s.btnBlue, width: '100%', padding: '10px 0', fontSize: 15 }}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  );
-};
-
 /* ── Per-question code editor + Run button ── */
 const CodeEditor = ({ question, studentId, courseId }) => {
   const [lang, setLang]         = useState(question.language || '');
@@ -312,7 +284,7 @@ const MyGrades = ({ studentId, courseId }) => {
 };
 
 /* ── Sidebar ── */
-const Sidebar = ({ active, setActive, studentName, onChangeName }) => {
+const Sidebar = ({ active, setActive, studentName }) => {
   const items = [
     { id: 'questions', label: 'Course questions', icon: '📋' },
     { id: 'history',   label: 'My submissions',   icon: '📁' },
@@ -342,26 +314,18 @@ const Sidebar = ({ active, setActive, studentName, onChangeName }) => {
       <div style={{ margin: '12px 12px', borderTop: '1px solid #dee2e6' }} />
       <div style={{ padding: '8px 16px' }}>
         <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Logged in as</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 6 }}>{studentName}</div>
-        <button onClick={onChangeName} style={{ fontSize: 11, color: '#0f6cbf', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-          Change name
-        </button>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#333' }}>{studentName}</div>
       </div>
     </div>
   );
 };
 
 /* ── Main Dashboard ── */
-const StudentDashboard = ({ courseId = 'course-001' }) => {
-  const [studentId, setStudentId]         = useState(() => localStorage.getItem('studentName') || '');
+const StudentDashboard = ({ courseId = 'course-001', user }) => {
+  const studentId = user?.name || '';
   const [questions, setQuestions]         = useState([]);
   const [loading, setLoading]             = useState(true);
   const [activeSection, setActiveSection] = useState('questions');
-
-  const handleNameConfirm = (name) => {
-    localStorage.setItem('studentName', name);
-    setStudentId(name);
-  };
 
   const fetchQuestions = useCallback(async () => {
     try {
@@ -374,15 +338,12 @@ const StudentDashboard = ({ courseId = 'course-001' }) => {
 
   useEffect(() => { if (studentId) fetchQuestions(); }, [studentId, fetchQuestions]);
 
-  if (!studentId) return <StudentNameGate onConfirm={handleNameConfirm} />;
-
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', background: '#f2f2f2' }}>
       <Sidebar
         active={activeSection}
         setActive={setActiveSection}
         studentName={studentId}
-        onChangeName={() => { localStorage.removeItem('studentName'); setStudentId(''); }}
       />
 
       <div style={{ flex: 1, padding: 24 }}>

@@ -425,7 +425,7 @@ const PlagiarismView = ({ courseId }) => {
 };
 
 /* ── Main dashboard ── */
-const TeacherDashboard = ({ courseId = 'course-001' }) => {
+const TeacherDashboard = ({ courseId = 'course-001', user }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [active, setActive]       = useState('questions');
@@ -449,7 +449,7 @@ const TeacherDashboard = ({ courseId = 'course-001' }) => {
     e.preventDefault();
     if (!newQ.title.trim() || !newQ.description.trim() || !newQ.language) return;
     try {
-      const res = await axios.post('/api/questions', { ...newQ, courseId, createdBy: 'teacher-001' });
+      const res = await axios.post('/api/questions', { ...newQ, courseId, createdBy: user?.username || user?.name || 'teacher' });
       setQuestions([res.data, ...questions]);
       setNewQ({ title: '', description: '', difficulty: 'medium', language: '' });
       setActive('questions');

@@ -1,26 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const questionController = require('../controllers/questionController');
+const { authenticate, requireRole } = require('../middleware/auth');
 
-// Get all questions for a course
-router.get('/course/:courseId', questionController.getQuestions);
+// Get all questions for a course (any logged-in user)
+router.get('/course/:courseId', authenticate, questionController.getQuestions);
 
-// Get single question
-router.get('/:id', questionController.getQuestion);
+// Get single question (any logged-in user)
+router.get('/:id', authenticate, questionController.getQuestion);
 
-// Create new question
-router.post('/', questionController.createQuestion);
+// Create new question (teacher only)
+router.post('/', authenticate, requireRole('teacher'), questionController.createQuestion);
 
-// Update question
-router.put('/:id', questionController.updateQuestion);
+// Update question (teacher only)
+router.put('/:id', authenticate, requireRole('teacher'), questionController.updateQuestion);
 
-// Submit/Update answer
-router.post('/:id/answer', questionController.submitAnswer);
+// Submit/Update model answer (teacher only)
+router.post('/:id/answer', authenticate, requireRole('teacher'), questionController.submitAnswer);
 
-// Update answer visibility
-router.patch('/:id/visibility', questionController.updateAnswerVisibility);
+// Update answer visibility (teacher only)
+router.patch('/:id/visibility', authenticate, requireRole('teacher'), questionController.updateAnswerVisibility);
 
-// Delete question
-router.delete('/:id', questionController.deleteQuestion);
+// Delete question (teacher only)
+router.delete('/:id', authenticate, requireRole('teacher'), questionController.deleteQuestion);
 
 module.exports = router;

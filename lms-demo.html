@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Learner LMS – Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f2f2f2; }
+
+  /* Navbar */
+  .navbar { background: #0f6cbf; color: white; padding: 0 20px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .navbar-title { font-size: 18px; font-weight: 600; }
+  .navbar-tabs { display: flex; gap: 4px; }
+  .tab-btn { padding: 6px 16px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; border-radius: 4px; transition: all 0.15s; }
+  .tab-btn.active { background: white; color: #0f6cbf; }
+  .tab-btn.inactive { background: rgba(255,255,255,0.15); color: white; }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.25); }
+
+  /* Layout */
+  .layout { display: flex; min-height: calc(100vh - 52px); }
+  .sidebar { width: 220px; background: white; border-right: 1px solid #dee2e6; flex-shrink: 0; }
+  .sidebar-section { padding: 16px 16px 8px; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; background: transparent; border: none; cursor: pointer; font-size: 14px; color: #333; font-weight: 400; text-align: left; border-left: 4px solid transparent; }
+  .sidebar-item.active { background: #e8f0fb; border-left-color: #0f6cbf; color: #0f6cbf; font-weight: 500; }
+  .sidebar-divider { margin: 12px; border-top: 1px solid #dee2e6; }
+  .sidebar-course { padding: 8px 16px; font-size: 13px; color: #555; }
+  .sidebar-course-name { font-weight: 500; margin-bottom: 2px; }
+  .sidebar-course-sub { color: #888; font-size: 12px; }
+  .main { flex: 1; padding: 24px; }
+
+  /* Cards */
+  .card { background: white; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 12px; overflow: hidden; }
+  .card-header { background: #0f6cbf; padding: 14px 20px; }
+  .card-header h2 { color: white; font-size: 18px; font-weight: 600; }
+  .card-body { padding: 24px; }
+
+  /* Form elements */
+  label { display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 5px; }
+  input, select, textarea {
+    width: 100%; padding: 7px 11px; border: 1px solid #ced4da;
+    border-radius: 4px; font-size: 13px; font-family: inherit; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #0f6cbf; }
+  .form-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .form-group { margin-bottom: 16px; flex: 1; }
+  .required { color: #dc3545; }
+  select.no-lang { border-color: #ffc107; background: #fffbf0; }
+
+  /* Buttons */
+  .btn { padding: 7px 16px; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-blue { background: #0f6cbf; color: white; }
+  .btn-blue:hover { background: #0b5aa0; }
+  .btn-gray { background: white; color: #333; border: 1px solid #ced4da; }
+  .btn-dash { background: white; color: #555; border: 1px dashed #adb5bd; }
+
+  /* Question card */
+  .q-header { padding: 14px 20px; display: flex; align-items: flex-start; gap: 14px; border-bottom: 1px solid #f0f0f0; }
+  .q-num { width: 32px; height: 32px; border-radius: 50%; background: #0f6cbf; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+  .q-title { font-size: 15px; font-weight: 500; color: #333; margin-bottom: 4px; }
+  .q-desc { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 12px; padding: 2px 10px; border-radius: 12px; font-weight: 500; }
+  .badge-easy { background: #d4edda; color: #155724; }
+  .badge-medium { background: #fff3cd; color: #856404; }
+  .badge-hard { background: #f8d7da; color: #721c24; }
+  .badge-lang { background: #e8f0fb; color: #0f6cbf; }
+
+  /* Code editor */
+  .code-editor-area { padding: 14px 20px; border-top: 1px solid #f0f0f0; }
+  .code-editor-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .code-editor-label { font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .lang-picker-wrap { display: flex; align-items: center; gap: 8px; }
+  .lang-picker-wrap label { font-size: 12px; color: #666; margin: 0; }
+  .lang-select { width: 170px; padding: 4px 8px; font-size: 12px; }
+  textarea.code-area {
+    height: 160px; resize: vertical; font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 12px; background: #1e1e2e; color: #cdd6f4;
+    border: 1px solid #313244; border-radius: 4px; padding: 10px 12px; width: 100%;
+  }
+  .code-hint { font-size: 11px; color: #aaa; margin-top: 5px; }
+
+  /* Answer section */
+  .answer-area { padding: 12px 20px; background: #fafafa; border-top: 1px solid #f0f0f0; }
+  .answer-revealed { margin-top: 12px; background: #f0fff4; border: 1px solid #c3e6cb; border-radius: 4px; padding: 12px 16px; }
+  .answer-revealed-label { font-size: 12px; font-weight: 600; color: #155724; margin-bottom: 6px; }
+  .answer-code { font-family: monospace; font-size: 13px; color: #333; white-space: pre-wrap; }
+  .locked { display: flex; align-items: center; gap: 8px; color: #888; font-size: 13px; }
+
+  /* Toggle */
+  .visibility-row { padding: 12px 20px; background: #fafafa; display: flex; align-items: center; justify-content: space-between; }
+  .toggle { width: 46px; height: 26px; border-radius: 13px; border: none; cursor: pointer; position: relative; transition: background 0.2s; }
+  .toggle-knob { width: 20px; height: 20px; border-radius: 50%; background: white; position: absolute; top: 3px; transition: left 0.2s; }
+
+  /* Tabs */
+  .tabs { border-bottom: 1px solid #dee2e6; background: #f8f9fa; display: flex; }
+  .tab { padding: 7px 16px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; background: #f8f9fa; color: #555; border-bottom: 2px solid transparent; }
+  .tab.active { background: white; color: #0f6cbf; border-bottom-color: #0f6cbf; }
+
+  /* Toast */
+  .toast { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; border-radius: 4px; padding: 10px 16px; margin-bottom: 16px; font-size: 14px; }
+
+  /* Banner */
+  .banner { background: white; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 16px; overflow: hidden; }
+  .banner-inner { background: #0f6cbf; padding: 12px 20px; display: flex; align-items: center; gap: 10px; }
+  .banner-title { color: white; font-weight: 600; font-size: 15px; }
+  .banner-sub { color: rgba(255,255,255,0.8); font-size: 12px; }
+
+  /* Section title row */
+  .section-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-title { font-size: 22px; font-weight: 600; color: #333; }
+
+  .breadcrumb { font-size: 13px; color: #666; margin-bottom: 16px; }
+  .breadcrumb a { color: #0f6cbf; cursor: pointer; text-decoration: none; }
+
+  .hidden { display: none; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .view { display: none; }
+  .view.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+  <div class="navbar-title">💻 Code Learner LMS</div>
+  <div class="navbar-tabs">
+    <button class="tab-btn active" id="btn-teacher" onclick="switchRole('teacher')">Teacher View</button>
+    <button class="tab-btn inactive" id="btn-student" onclick="switchRole('student')">Student View</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ TEACHER VIEW ═══════════════════════════════ -->
+<div id="teacher-view" class="layout page active">
+  <div class="sidebar">
+    <div class="sidebar-section">Navigation</div>
+    <button class="sidebar-item active" onclick="teacherNav('questions',this)">📋 Assignment questions</button>
+    <button class="sidebar-item" onclick="teacherNav('create',this)">✏️ Create question</button>
+    <button class="sidebar-item" onclick="teacherNav('grades',this)">📊 Grades</button>
+    <button class="sidebar-item" onclick="teacherNav('participants',this)">👥 Participants</button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Course</div>
+    <div class="sidebar-course">
+      <div class="sidebar-course-name">CS101</div>
+      <div class="sidebar-course-sub">Programming Course</div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="breadcrumb"><a>Dashboard</a> › <a>CS101</a> › <span id="t-breadcrumb">Assignment questions</span></div>
+    <div id="t-toast" class="toast hidden">✓ Question created successfully</div>
+
+    <!-- Questions list -->
+    <div id="t-questions" class="view active">
+      <div class="section-title-row">
+        <div class="section-title">Assignment questions <span style="font-size:15px;font-weight:400;color:#888">(3)</span></div>
+        <button class="btn btn-blue" onclick="teacherNav('create', document.querySelector('.sidebar-item:nth-child(3)'))">+ Add question</button>
+      </div>
+
+      <!-- Q1 -->
+      <div class="card">
+        <div class="q-header">
+          <div class="q-num">1</div>
+          <div style="flex:1">
+            <div class="q-title">Fibonacci sequence</div>
+            <div class="q-desc">Write a function that returns the nth Fibonacci number using recursion or iteration.</div>
+            <div class="badges">
+              <span class="badge badge-medium">medium</span>
+              <span class="badge badge-lang">Python</span>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab(this,'t-q1')">📝 Answer</button>
+          <button class="tab" onclick="switchTab(this,'t-q1-ph')">💻 Placeholder code</button>
+          <button class="tab" onclick="switchTab(this,'t-q1-tc')">🧪 Test cases (2)</button>
+        </div>
+        <div id="t-q1" style="padding:14px 20px;border-bottom:1px solid #f0f0f0">
+          <div style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Model answer</div>
+          <div style="background:#f0f7ff;border:1px solid #cce0ff;border-radius:4px;padding:10px 14px;font-family:monospace;font-size:13px;color:#333;white-space:pre-wrap;margin-bottom:10px">def fib(n):
+    if n <= 1: return n
+    return fib(n-1) + fib(n-2)</div>
+          <button class="btn btn-gray">✏️ Edit answer</button>
+        </div>
+        <div id="t-q1-ph" style="padding:14px 20px;border-bottom:1px solid #f0f0f0;display:none">
+          <div style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Starter / placeholder code</div>
+          <div class="form-group">
+            <label>Programming language</label>
+            <select style="width:220px" onchange="updatePlaceholder(this,'t-q1-code')">
+              <option value="python" selected>Python</option>
+              <option value="c">C</option><option value="cpp">C++</option>
+              <option value="java">Java</option><option value="javascript">JavaScript</option>
+              <option value="mips">MIPS Assembly</option><option value="csharp">C#</option><option value="ruby">Ruby</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Placeholder code</label>
+            <textarea id="t-q1-code" style="height:140px;resize:vertical;font-family:monospace;font-size:13px" class="form-group">def fib(n):
+    # your code here
+    pass
+
+print(fib(int(input())))</textarea>
+          </div>
+          <button class="btn btn-blue">Save</button>
+        </div>
+        <div id="t-q1-tc" style="padding:14px 20px;border-bottom:1px solid #f0f0f0;display:none">
+          <div style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Test cases</div>
+          <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:4px;padding:12px;margin-bottom:10px">
+            <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">Test case 1</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div><label>Input</label><textarea style="height:50px;font-family:monospace;font-size:13px">10</textarea></div>
+              <div><label>Expected output</label><textarea style="height:50px;font-family:monospace;font-size:13px">55</textarea></div>
+            </div>
+          </div>
+          <button class="btn btn-dash">+ Add test case</button>
+        </div>
+        <div class="visibility-row">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:#333">Student visibility</div>
+            <div style="font-size:12px;color:#155724" id="t-vis-1">✓ Answer visible to students</div>
+          </div>
+          <button class="toggle" id="t-toggle-1" style="background:#28a745" onclick="toggleVis(1)">
+            <div class="toggle-knob" id="t-knob-1" style="left:23px"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Q2 -->
+      <div class="card">
+        <div class="q-header">
+          <div class="q-num">2</div>
+          <div style="flex:1">
+            <div class="q-title">Binary search implementation</div>
+            <div class="q-desc">Implement binary search on a sorted array and return the index of the target element.</div>
+            <div class="badges">
+              <span class="badge badge-hard">hard</span>
+              <span class="badge badge-lang">C++</span>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab(this,'t-q2')">📝 Answer</button>
+          <button class="tab" onclick="switchTab(this,'t-q2-ph')">💻 Placeholder code</button>
+          <button class="tab" onclick="switchTab(this,'t-q2-tc')">🧪 Test cases (0)</button>
+        </div>
+        <div id="t-q2" style="padding:14px 20px;border-bottom:1px solid #f0f0f0">
+          <div style="font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">Model answer</div>
+          <button class="btn btn-dash">+ Add answer</button>
+        </div>
+        <div id="t-q2-ph" style="padding:14px 20px;border-bottom:1px solid #f0f0f0;display:none">
+          <label>Programming language</label>
+          <select style="width:220px;margin-bottom:12px">
+            <option value="cpp" selected>C++</option>
+            <option value="c">C</option><option value="python">Python</option>
+            <option value="java">Java</option><option value="javascript">JavaScript</option>
+          </select>
+          <textarea style="height:120px;font-family:monospace;font-size:13px">#include &lt;iostream&gt;
+using namespace std;
+
+int binarySearch(int arr[], int n, int target) {
+    // your code here
+    return -1;
+}</textarea>
+        </div>
+        <div id="t-q2-tc" style="padding:14px 20px;border-bottom:1px solid #f0f0f0;display:none">
+          <button class="btn btn-dash">+ Add test case</button>
+        </div>
+        <div class="visibility-row">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:#333">Student visibility</div>
+            <div style="font-size:12px;color:#888" id="t-vis-2">Answer hidden from students</div>
+          </div>
+          <button class="toggle" id="t-toggle-2" style="background:#ccc" onclick="toggleVis(2)">
+            <div class="toggle-knob" id="t-knob-2" style="left:3px"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create question form -->
+    <div id="t-create" class="view">
+      <div class="card">
+        <div class="card-header"><h2>Create new question</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label>Question title</label>
+            <input type="text" id="new-title" placeholder="e.g. Implement a stack using arrays" />
+          </div>
+          <div class="form-group">
+            <label>Description / instructions</label>
+            <textarea id="new-desc" style="height:90px;resize:vertical" placeholder="Describe what students should implement..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Difficulty</label>
+              <select id="new-diff">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Programming language <span class="required">*</span></label>
+              <select id="new-lang" class="no-lang" onchange="this.className=this.value?'':'no-lang'">
+                <option value="">— Select a language —</option>
+                <option value="mips">MIPS Assembly</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="javascript">JavaScript</option>
+                <option value="csharp">C#</option>
+                <option value="ruby">Ruby</option>
+              </select>
+            </div>
+          </div>
+          <p style="font-size:13px;color:#666;margin:0 0 18px">You can add the answer, placeholder code, and test cases after creating the question.</p>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-blue" onclick="createQuestion()">Create question</button>
+            <button class="btn btn-gray" onclick="teacherNav('questions',document.querySelector('.sidebar-item'))">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="t-grades" class="view">
+      <div class="card"><div style="padding:40px;text-align:center;color:#888">This section is not yet available.</div></div>
+    </div>
+    <div id="t-participants" class="view">
+      <div class="card"><div style="padding:40px;text-align:center;color:#888">This section is not yet available.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ STUDENT VIEW ═══════════════════════════════ -->
+<div id="student-view" class="layout page">
+  <div class="sidebar">
+    <div class="sidebar-section">Navigation</div>
+    <button class="sidebar-item active" onclick="studentNav('questions',this)">📋 Course questions</button>
+    <button class="sidebar-item" onclick="studentNav('resources',this)">📁 Resources</button>
+    <button class="sidebar-item" onclick="studentNav('grades',this)">📊 My grades</button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Course</div>
+    <div class="sidebar-course">
+      <div class="sidebar-course-name">CS101</div>
+      <div class="sidebar-course-sub">Programming Course</div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="breadcrumb"><a>Dashboard</a> › <a>CS101</a> › Course questions</div>
+
+    <div id="s-questions" class="view active">
+      <h1 class="section-title" style="margin-bottom:16px">Course questions</h1>
+
+      <div class="banner">
+        <div class="banner-inner">
+          <span style="font-size:20px">💻</span>
+          <div>
+            <div class="banner-title">CS101 – Programming Course</div>
+            <div class="banner-sub">Choose your language per question. Your teacher controls answer visibility.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Q1 -->
+      <div class="card">
+        <div class="q-header">
+          <div class="q-num">1</div>
+          <div style="flex:1">
+            <div class="q-title">Fibonacci sequence</div>
+            <div class="q-desc">Write a function that returns the nth Fibonacci number using recursion or iteration.</div>
+            <div class="badges">
+              <span class="badge badge-medium">medium</span>
+              <span class="badge badge-lang">Python</span>
+            </div>
+          </div>
+        </div>
+        <!-- Code editor -->
+        <div class="code-editor-area">
+          <div class="code-editor-header">
+            <span class="code-editor-label">Your code</span>
+            <div class="lang-picker-wrap">
+              <label>Language:</label>
+              <select class="lang-select" onchange="pickLang(this,'s-code-1','python')">
+                <option value="">— Choose language —</option>
+                <option value="mips">MIPS Assembly</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="python" selected>Python</option>
+                <option value="java">Java</option>
+                <option value="javascript">JavaScript</option>
+                <option value="csharp">C#</option>
+                <option value="ruby">Ruby</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="s-code-1" class="code-area">def fib(n):
+    # your code here
+    pass
+
+print(fib(int(input())))</textarea>
+        </div>
+        <div class="answer-area">
+          <button id="s-reveal-1" class="btn btn-blue" onclick="revealAnswer(1)">▼ Show answer</button>
+          <div id="s-answer-1" class="answer-revealed hidden">
+            <div class="answer-revealed-label">✓ Teacher's answer</div>
+            <div class="answer-code">def fib(n):
+    if n <= 1: return n
+    return fib(n-1) + fib(n-2)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Q2 -->
+      <div class="card">
+        <div class="q-header">
+          <div class="q-num">2</div>
+          <div style="flex:1">
+            <div class="q-title">Binary search implementation</div>
+            <div class="q-desc">Implement binary search on a sorted array and return the index of the target element.</div>
+            <div class="badges">
+              <span class="badge badge-hard">hard</span>
+              <span class="badge badge-lang">C++</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-editor-area">
+          <div class="code-editor-header">
+            <span class="code-editor-label">Your code</span>
+            <div class="lang-picker-wrap">
+              <label>Language:</label>
+              <select class="lang-select" onchange="pickLang(this,'s-code-2','')">
+                <option value="">— Choose language —</option>
+                <option value="mips">MIPS Assembly</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="javascript">JavaScript</option>
+                <option value="csharp">C#</option>
+                <option value="ruby">Ruby</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="s-code-2" class="code-area" placeholder="// select a language above to start coding"></textarea>
+          <div class="code-hint">Choose a language to get a starter template.</div>
+        </div>
+        <div class="answer-area">
+          <div class="locked">🔒 The teacher hasn't released the answer yet.</div>
+        </div>
+      </div>
+
+      <!-- Student Q3 -->
+      <div class="card">
+        <div class="q-header">
+          <div class="q-num">3</div>
+          <div style="flex:1">
+            <div class="q-title">Hello World</div>
+            <div class="q-desc">Write a simple Hello World program in the language of your choice.</div>
+            <div class="badges">
+              <span class="badge badge-easy">easy</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-editor-area">
+          <div class="code-editor-header">
+            <span class="code-editor-label">Your code</span>
+            <div class="lang-picker-wrap">
+              <label>Language:</label>
+              <select class="lang-select" onchange="pickLang(this,'s-code-3','')">
+                <option value="">— Choose language —</option>
+                <option value="mips">MIPS Assembly</option>
+                <option value="c">C</option>
+                <option value="cpp">C++</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="javascript">JavaScript</option>
+                <option value="csharp">C#</option>
+                <option value="ruby">Ruby</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="s-code-3" class="code-area" placeholder="// select a language above to start coding"></textarea>
+          <div class="code-hint" id="s-hint-3">Choose a language to get a starter template.</div>
+        </div>
+        <div class="answer-area">
+          <div class="locked">🔒 The teacher hasn't released the answer yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="s-resources" class="view">
+      <div class="card"><div style="padding:40px;text-align:center;color:#888">This section is not yet available.</div></div>
+    </div>
+    <div id="s-grades" class="view">
+      <div class="card"><div style="padding:40px;text-align:center;color:#888">This section is not yet available.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PLACEHOLDERS = {
+  mips: '# MIPS Assembly\n.data\n    # data section\n\n.text\nmain:\n    # your code here\n\n    li $v0, 10\n    syscall',
+  c: '#include <stdio.h>\n\nint main() {\n    // your code here\n    return 0;\n}',
+  cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // your code here\n    return 0;\n}',
+  python: '# Python\ndef solution():\n    # your code here\n    pass\n\nsolution()',
+  java: 'public class Solution {\n    public static void main(String[] args) {\n        // your code here\n    }\n}',
+  javascript: 'function solution() {\n    // your code here\n}\n\nsolution();',
+  csharp: 'using System;\n\nclass Solution {\n    static void Main() {\n        // your code here\n    }\n}',
+  ruby: 'def solution\n  # your code here\nend\n\nsolution',
+};
+
+function switchRole(role) {
+  document.getElementById('teacher-view').classList.toggle('active', role === 'teacher');
+  document.getElementById('student-view').classList.toggle('active', role === 'student');
+  document.getElementById('btn-teacher').className = 'tab-btn ' + (role === 'teacher' ? 'active' : 'inactive');
+  document.getElementById('btn-student').className = 'tab-btn ' + (role === 'student' ? 'active' : 'inactive');
+}
+
+function teacherNav(view, btn) {
+  document.querySelectorAll('#teacher-view .sidebar-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('#teacher-view .view').forEach(v => v.classList.remove('active'));
+  document.getElementById('t-' + view).classList.add('active');
+  document.getElementById('t-breadcrumb').textContent = view === 'create' ? 'Create question' : view === 'questions' ? 'Assignment questions' : view.charAt(0).toUpperCase() + view.slice(1);
+}
+
+function studentNav(view, btn) {
+  document.querySelectorAll('#student-view .sidebar-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('#student-view .view').forEach(v => v.classList.remove('active'));
+  document.getElementById('s-' + view).classList.add('active');
+}
+
+function switchTab(btn, targetId) {
+  const card = btn.closest('.card');
+  card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const allPanels = [targetId.replace(/-ph$/,'').replace(/-tc$/,''), targetId.replace(/-ph$/,'') + '-ph', targetId.replace(/-ph$/,'').replace(/-tc$/,'') + '-tc'];
+  // just toggle all siblings
+  card.querySelectorAll('[id^="t-q"]').forEach(el => { el.style.display = 'none'; });
+  const target = document.getElementById(targetId);
+  if (target) target.style.display = 'block';
+}
+
+function toggleVis(n) {
+  const toggle = document.getElementById('t-toggle-' + n);
+  const knob = document.getElementById('t-knob-' + n);
+  const label = document.getElementById('t-vis-' + n);
+  const on = toggle.style.background === 'rgb(40, 167, 69)';
+  toggle.style.background = on ? '#ccc' : '#28a745';
+  knob.style.left = on ? '3px' : '23px';
+  label.style.color = on ? '#888' : '#155724';
+  label.textContent = on ? 'Answer hidden from students' : '✓ Answer visible to students';
+}
+
+function pickLang(sel, codeId, questionLang) {
+  const val = sel.value;
+  const ta = document.getElementById(codeId);
+  if (val && !ta.value.trim()) {
+    ta.value = PLACEHOLDERS[val] || '// start coding here';
+  }
+  const hint = document.getElementById('s-hint-' + codeId.split('-')[2]);
+  if (hint) hint.style.display = val ? 'none' : 'block';
+}
+
+function revealAnswer(n) {
+  const btn = document.getElementById('s-reveal-' + n);
+  const ans = document.getElementById('s-answer-' + n);
+  const showing = !ans.classList.contains('hidden');
+  ans.classList.toggle('hidden', showing);
+  btn.textContent = showing ? '▼ Show answer' : '▲ Hide answer';
+  btn.style.background = showing ? '#0f6cbf' : '#e8f0fb';
+  btn.style.color = showing ? 'white' : '#0f6cbf';
+  btn.style.border = showing ? 'none' : '1px solid #0f6cbf';
+}
+
+function createQuestion() {
+  const title = document.getElementById('new-title').value.trim();
+  const desc = document.getElementById('new-desc').value.trim();
+  const lang = document.getElementById('new-lang').value;
+  if (!title || !desc || !lang) {
+    if (!lang) { document.getElementById('new-lang').style.borderColor = '#dc3545'; }
+    alert('Please fill in all required fields, including the programming language.');
+    return;
+  }
+  document.getElementById('t-toast').classList.remove('hidden');
+  setTimeout(() => document.getElementById('t-toast').classList.add('hidden'), 2500);
+  document.getElementById('new-title').value = '';
+  document.getElementById('new-desc').value = '';
+  document.getElementById('new-lang').value = '';
+  document.getElementById('new-lang').className = 'no-lang';
+  teacherNav('questions', document.querySelector('#teacher-view .sidebar-item'));
+}
+
+function updatePlaceholder(sel, codeId) {
+  document.getElementById(codeId).value = PLACEHOLDERS[sel.value] || '';
+}
+</script>
+</body>
+</html>

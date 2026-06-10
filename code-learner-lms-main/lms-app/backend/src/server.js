@@ -7,6 +7,7 @@ const questionRoutes    = require('./routes/questionRoutes');
 const submissionRoutes  = require('./routes/submissionRoutes');
 const gradeRoutes       = require('./routes/gradeRoutes');
 const plagiarismRoutes  = require('./routes/plagiarismRoutes');
+const authRoutes        = require('./routes/authRoutes');
 
 const app = express();
 
@@ -29,6 +30,7 @@ mongoose
   });
 
 // Routes
+app.use('/api/auth',        authRoutes);
 app.use('/api/questions',   questionRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/grades',      gradeRoutes);
