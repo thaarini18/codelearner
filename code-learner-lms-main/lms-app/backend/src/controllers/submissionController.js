@@ -37,20 +37,32 @@ function runMips(code, stdin = '') {
 
     const cleanup = () => { try { fs.unlinkSync(tmpFile); } catch (_) {} };
 
-    proc.on('close', () => {
+    proc.on('close', (code, signal) => {
       cleanup();
+
+      // Process killed by the 10s timeout (infinite loop, etc.)
+      if (signal) {
+        return resolve({ output: null, error: `MIPS program timed out or was killed (${signal}).` });
+      }
+
       // Strip SPIM header lines (everything up to and including the last "Loaded:" line)
       const lines = stdout.split('\n');
       const lastLoaded = lines.reduce((acc, l, i) => l.startsWith('Loaded:') ? i : acc, -1);
       const clean = lines.slice(lastLoaded + 1).join('\n').trim();
 
-      // SPIM prints assembly errors in stdout prefixed with "spim:"
-      const spimErr = lines.find(l => /^spim:/i.test(l));
-      if (spimErr && !clean) {
-        resolve({ output: null, error: spimErr });
-      } else {
-        resolve({ output: clean, error: null });
+      // SPIM prints assembly/runtime errors in stdout prefixed with "spim:",
+      // and sometimes as "Exception occurred ..." lines.
+      const spimErr = lines.find(l => /^spim:/i.test(l) || /^exception occurred/i.test(l));
+      if (spimErr) {
+        return resolve({ output: clean || null, error: spimErr.trim() });
       }
+
+      // Surface anything written to stderr as an error too.
+      if (stderr && stderr.trim()) {
+        return resolve({ output: clean || null, error: stderr.trim() });
+      }
+
+      resolve({ output: clean, error: null });
     });
 
     proc.on('error', (err) => {
@@ -127,19 +139,19 @@ exports.submitCode = async (req, res) => {
     let executionError = null;
 
     if (testCases.length === 0) {
-      // No test cases — just run the code and record output
+      // No test cases configured for this question — just run the code and
+      // show the raw output. There's nothing to compare against, so this is
+      // NOT a pass/fail verdict (passed: null), and it isn't scored/graded.
       const { output, error } = await runCode(language, code, '');
       executionError = error;
-      // Store a single "free run" result
       testResults.push({
-        label: 'Free run',
+        label: 'Output (no test cases configured)',
         input: '',
         expectedOutput: '',
         actualOutput: output || '',
-        passed: !error,
+        passed: null,
         isHidden: false,
       });
-      if (!error) totalPassed = 1;
     } else {
       for (const tc of testCases) {
         const { output, error } = await runCode(language, code, tc.input);
@@ -159,7 +171,9 @@ exports.submitCode = async (req, res) => {
       }
     }
 
-    const totalCases = testResults.length;
+    // Only real test cases (with an expected output to compare against)
+    // count toward the score and gradebook.
+    const totalCases = testCases.length;
     const score = totalCases > 0 ? Math.round((totalPassed / totalCases) * 100) : 0;
 
     const submission = await Submission.create({
@@ -175,8 +189,10 @@ exports.submitCode = async (req, res) => {
       executionError,
     });
 
-    // Update grade record
-    await updateGrade(studentId, courseId || question.courseId, questionId, question.title, score);
+    // Update grade record (only when there are real test cases to grade against)
+    if (totalCases > 0) {
+      await updateGrade(studentId, courseId || question.courseId, questionId, question.title, score);
+    }
 
     res.json(submission);
   } catch (err) {

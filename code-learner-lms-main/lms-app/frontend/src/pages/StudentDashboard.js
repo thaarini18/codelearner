@@ -127,47 +127,67 @@ const CodeEditor = ({ question, studentId, courseId }) => {
           )}
           {result.testResults && result.testResults.length > 0 && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 }}>Test results</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: result.score >= 80 ? '#155724' : result.score >= 50 ? '#856404' : '#721c24' }}>
-                  {result.totalPassed}/{result.totalCases} passed — {result.score}%
-                </span>
-              </div>
-              {result.testResults.map((tr, i) => (
+              {result.totalCases > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 }}>Test results</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: result.score >= 80 ? '#155724' : result.score >= 50 ? '#856404' : '#721c24' }}>
+                    {result.totalPassed}/{result.totalCases} passed — {result.score}%
+                  </span>
+                </div>
+              )}
+              {result.testResults.map((tr, i) => {
+                // tr.passed === null means there's no expected output to compare
+                // against (no test cases configured) — show output, no verdict.
+                const isVerdict = tr.passed !== null && tr.passed !== undefined;
+                const borderColor = !isVerdict ? '#dee2e6' : (tr.passed ? '#c3e6cb' : '#f5c6cb');
+                const bg = !isVerdict ? '#f8f9fa' : (tr.passed ? '#f0fff4' : '#fff5f5');
+                return (
                 <div key={i} style={{
-                  border: `1px solid ${tr.passed ? '#c3e6cb' : '#f5c6cb'}`,
-                  background: tr.passed ? '#f0fff4' : '#fff5f5',
+                  border: `1px solid ${borderColor}`,
+                  background: bg,
                   borderRadius: 4, padding: '10px 14px', marginBottom: 8,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>{tr.label || `Test ${i + 1}`}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: tr.passed ? '#155724' : '#721c24' }}>
-                      {tr.passed ? '✓ Passed' : '✗ Failed'}
-                    </span>
+                    {isVerdict && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: tr.passed ? '#155724' : '#721c24' }}>
+                        {tr.passed ? '✓ Passed' : '✗ Failed'}
+                      </span>
+                    )}
                   </div>
+                  {!isVerdict && (
+                    <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>
+                      This question has no test cases, so this output isn't graded — add expected output as a teacher to check correctness.
+                    </div>
+                  )}
                   {!tr.isHidden && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
-                      <div>
-                        <div style={{ color: '#888', marginBottom: 2 }}>Input</div>
-                        <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.input || '(none)'}</pre>
-                      </div>
-                      <div>
-                        <div style={{ color: '#888', marginBottom: 2 }}>Expected</div>
-                        <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.expectedOutput || '(any)'}</pre>
-                      </div>
-                      <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isVerdict ? '1fr 1fr' : '1fr', gap: 8, fontSize: 12 }}>
+                      {isVerdict && (
+                        <>
+                          <div>
+                            <div style={{ color: '#888', marginBottom: 2 }}>Input</div>
+                            <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.input || '(none)'}</pre>
+                          </div>
+                          <div>
+                            <div style={{ color: '#888', marginBottom: 2 }}>Expected</div>
+                            <pre style={{ ...s.mono, background: '#f8f9fa', padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap' }}>{tr.expectedOutput || '(any)'}</pre>
+                          </div>
+                        </>
+                      )}
+                      <div style={{ gridColumn: isVerdict ? '1 / -1' : 'auto' }}>
                         <div style={{ color: '#888', marginBottom: 2 }}>Your output</div>
                         <pre style={{
                           ...s.mono,
-                          background: tr.passed ? '#f0fff4' : '#fff0f0',
+                          background: !isVerdict ? '#f8f9fa' : (tr.passed ? '#f0fff4' : '#fff0f0'),
                           padding: '6px 8px', borderRadius: 3, margin: 0, whiteSpace: 'pre-wrap',
-                          color: tr.passed ? '#155724' : '#721c24',
+                          color: !isVerdict ? '#333' : (tr.passed ? '#155724' : '#721c24'),
                         }}>{tr.actualOutput || '(no output)'}</pre>
                       </div>
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
