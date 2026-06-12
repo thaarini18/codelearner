@@ -304,11 +304,12 @@ const MyGrades = ({ studentId, courseId }) => {
 };
 
 /* ── Sidebar ── */
-const Sidebar = ({ active, setActive, studentName }) => {
+const Sidebar = ({ active, setActive, studentName, activeCourse }) => {
   const items = [
     { id: 'questions', label: 'Course questions', icon: '📋' },
     { id: 'history',   label: 'My submissions',   icon: '📁' },
     { id: 'grades',    label: 'My grades',         icon: '📊' },
+    { id: 'courses',   label: 'My courses',        icon: '🏫' },
   ];
   return (
     <div style={{ width: 220, background: 'white', borderRight: '1px solid #dee2e6', minHeight: 'calc(100vh - 52px)', flexShrink: 0 }}>
@@ -326,10 +327,24 @@ const Sidebar = ({ active, setActive, studentName }) => {
         </button>
       ))}
       <div style={{ margin: '12px 12px', borderTop: '1px solid #dee2e6' }} />
-      <div style={{ padding: '6px 16px 6px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Course</div>
+      <div style={{ padding: '6px 16px 6px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Active course</div>
       <div style={{ padding: '8px 16px', fontSize: 13, color: '#555' }}>
-        <div style={{ fontWeight: 500, marginBottom: 2 }}>CS101</div>
-        <div style={{ color: '#888', fontSize: 12 }}>Programming Course</div>
+        {activeCourse ? (
+          <>
+            <div style={{ fontWeight: 500, marginBottom: 2 }}>{activeCourse.code}</div>
+            <div style={{ color: '#888', fontSize: 12 }}>{activeCourse.name}</div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontWeight: 500, marginBottom: 2 }}>course-001</div>
+            <div style={{ color: '#888', fontSize: 12 }}>
+              Not enrolled yet —{' '}
+              <button onClick={() => setActive('courses')} style={{ background: 'none', border: 'none', color: '#0f6cbf', cursor: 'pointer', padding: 0, fontSize: 12 }}>
+                join a course
+              </button>
+            </div>
+          </>
+        )}
       </div>
       <div style={{ margin: '12px 12px', borderTop: '1px solid #dee2e6' }} />
       <div style={{ padding: '8px 16px' }}>
@@ -340,12 +355,132 @@ const Sidebar = ({ active, setActive, studentName }) => {
   );
 };
 
+/* ── My Courses view (enroll + list) ── */
+const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged, defaultRollNumber }) => {
+  const [form, setForm]         = useState({ code: '', password: '', rollNumber: defaultRollNumber || '' });
+  const [enrolling, setEnrolling] = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
+
+  const handleEnroll = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!form.code.trim() || !form.password.trim() || !form.rollNumber.trim()) {
+      setError('Course code, password and roll number are required.');
+      return;
+    }
+    setEnrolling(true);
+    try {
+      const res = await axios.post('/api/courses/enroll', {
+        code: form.code.trim().toUpperCase(),
+        password: form.password,
+        rollNumber: form.rollNumber.trim(),
+      });
+      setSuccess(`✓ Enrolled in ${res.data.course.name} (${res.data.course.code})`);
+      setForm({ code: '', password: '', rollNumber: form.rollNumber });
+      onCoursesChanged();
+      onSwitchCourse(res.data.course.code);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not enroll in course.');
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 16, overflow: 'hidden' }}>
+        <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
+          <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Enroll in a course</h2>
+        </div>
+        <form onSubmit={handleEnroll} style={{ padding: 20 }}>
+          {error && (
+            <div style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#842029' }}>
+              {error}
+            </div>
+          )}
+          {success && (
+            <div style={{ background: '#d4edda', border: '1px solid #c3e6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#155724' }}>
+              {success}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 5 }}>Course code</label>
+              <input
+                value={form.code}
+                onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                style={{ ...s.input, fontFamily: 'monospace', letterSpacing: 1 }}
+                placeholder="e.g. AB12CD"
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 5 }}>Course password</label>
+              <input
+                type="text"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                style={s.input}
+                placeholder="Given by your teacher"
+              />
+            </div>
+          </div>
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 5 }}>Roll number</label>
+            <input
+              value={form.rollNumber}
+              onChange={e => setForm({ ...form, rollNumber: e.target.value })}
+              style={s.input}
+              placeholder="e.g. 21CS045"
+            />
+          </div>
+          <button type="submit" disabled={enrolling} style={s.btnBlue}>{enrolling ? 'Enrolling…' : 'Enroll'}</button>
+        </form>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
+        <div style={{ background: '#f8f9fa', padding: '12px 20px', borderBottom: '1px solid #dee2e6' }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#333' }}>Your courses ({courses.length})</h3>
+        </div>
+        {courses.length === 0 ? (
+          <div style={{ padding: 30, textAlign: 'center', color: '#888', fontSize: 13 }}>
+            You're not enrolled in any courses yet. Enroll above using a code from your teacher.
+          </div>
+        ) : (
+          courses.map((c) => (
+            <div key={c.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f0f0f0' }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: 14, color: '#333' }}>
+                  {c.name}
+                  {activeCourseCode === c.code && (
+                    <span style={{ marginLeft: 8, fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#e8f0fb', color: '#0f6cbf', fontWeight: 600 }}>ACTIVE</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                  Code: <strong style={{ fontFamily: 'monospace', color: '#333' }}>{c.code}</strong> · Roll number: {c.rollNumber}
+                </div>
+                {c.description && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{c.description}</div>}
+              </div>
+              {activeCourseCode !== c.code && (
+                <button onClick={() => onSwitchCourse(c.code)} style={s.btnGray}>Set active</button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ── Main Dashboard ── */
-const StudentDashboard = ({ courseId = 'course-001', user }) => {
+const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeCourseCode, onCoursesChanged, onSwitchCourse }) => {
   const studentId = user?.name || '';
   const [questions, setQuestions]         = useState([]);
   const [loading, setLoading]             = useState(true);
   const [activeSection, setActiveSection] = useState('questions');
+
+  const activeCourse = courses.find(c => c.code === activeCourseCode);
 
   const fetchQuestions = useCallback(async () => {
     try {
@@ -358,21 +493,29 @@ const StudentDashboard = ({ courseId = 'course-001', user }) => {
 
   useEffect(() => { if (studentId) fetchQuestions(); }, [studentId, fetchQuestions]);
 
+  const sectionLabels = {
+    history: 'My submissions',
+    grades: 'My grades',
+    courses: 'My courses',
+    questions: 'Course questions',
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', background: '#f2f2f2' }}>
       <Sidebar
         active={activeSection}
         setActive={setActiveSection}
         studentName={studentId}
+        activeCourse={activeCourse}
       />
 
       <div style={{ flex: 1, padding: 24 }}>
         <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
           <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>Dashboard</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>CS101</span>
+          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>{activeCourse ? activeCourse.code : 'course-001'}</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span>{activeSection === 'history' ? 'My submissions' : activeSection === 'grades' ? 'My grades' : 'Course questions'}</span>
+          <span>{sectionLabels[activeSection] || 'Course questions'}</span>
         </div>
 
         {activeSection === 'questions' && (
@@ -382,7 +525,9 @@ const StudentDashboard = ({ courseId = 'course-001', user }) => {
               <div style={{ background: '#0f6cbf', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 20 }}>💻</span>
                 <div>
-                  <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>CS101 – Programming Course</div>
+                  <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>
+                    {activeCourse ? `${activeCourse.code} – ${activeCourse.name}` : 'CS101 – Programming Course'}
+                  </div>
                   <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Choose your language per question. Click Run to check your solution against test cases.</div>
                 </div>
               </div>
@@ -439,6 +584,19 @@ const StudentDashboard = ({ courseId = 'course-001', user }) => {
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Grades</h1>
             <MyGrades studentId={studentId} courseId={courseId} />
+          </>
+        )}
+
+        {activeSection === 'courses' && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Courses</h1>
+            <StudentCoursesView
+              courses={courses}
+              activeCourseCode={activeCourseCode}
+              onSwitchCourse={onSwitchCourse}
+              onCoursesChanged={onCoursesChanged}
+              defaultRollNumber={user?.rollNumber || ''}
+            />
           </>
         )}
       </div>

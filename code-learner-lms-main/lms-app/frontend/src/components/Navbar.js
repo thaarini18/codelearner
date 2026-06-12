@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Navbar = ({ userName, userRole, onLogout }) => {
+const Navbar = ({ userName, userRole, onLogout, courses = [], activeCourseCode, activeCourseName, onSwitchCourse }) => {
   return (
     <div style={{ background: '#0f6cbf', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -10,7 +10,27 @@ const Navbar = ({ userName, userRole, onLogout }) => {
         </svg>
         <span style={{ color: 'white', fontSize: 18, fontWeight: 600 }}>Code Learner LMS</span>
         <span style={{ color: 'rgba(255,255,255,0.4)', margin: '0 6px' }}>|</span>
-        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>CS101 – Introduction to MIPS Assembly</span>
+        {courses.length > 0 ? (
+          <select
+            value={activeCourseCode || ''}
+            onChange={(e) => onSwitchCourse && onSwitchCourse(e.target.value)}
+            title="Switch active course"
+            style={{
+              background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 4, fontSize: 13, padding: '4px 8px', cursor: 'pointer', outline: 'none',
+            }}
+          >
+            {courses.map((c) => (
+              <option key={c.code} value={c.code} style={{ color: '#333' }}>
+                {c.code} – {c.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>
+            {activeCourseName || 'No courses yet'}
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

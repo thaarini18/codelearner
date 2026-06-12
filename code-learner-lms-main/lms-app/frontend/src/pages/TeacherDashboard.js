@@ -19,12 +19,13 @@ const s = {
 };
 
 /* ── Sidebar ── */
-const Sidebar = ({ active, setActive }) => {
+const Sidebar = ({ active, setActive, activeCourse }) => {
   const items = [
     { id: 'questions',   label: 'Assignment questions', icon: '📋' },
     { id: 'create',      label: 'Create question',      icon: '✏️'  },
     { id: 'grades',      label: 'Gradebook',            icon: '📊' },
     { id: 'plagiarism',  label: 'Plagiarism check',     icon: '🔍' },
+    { id: 'courses',     label: 'My courses',           icon: '🏫' },
   ];
   return (
     <div style={{ width: 220, background: '#fff', borderRight: '1px solid #dee2e6', minHeight: 'calc(100vh - 52px)', flexShrink: 0 }}>
@@ -42,10 +43,24 @@ const Sidebar = ({ active, setActive }) => {
         </button>
       ))}
       <div style={{ margin: '12px 12px', borderTop: '1px solid #dee2e6' }} />
-      <div style={{ padding: '6px 16px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Course</div>
+      <div style={{ padding: '6px 16px', fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8 }}>Active course</div>
       <div style={{ padding: '8px 16px', fontSize: 13, color: '#555' }}>
-        <div style={{ fontWeight: 500, marginBottom: 2 }}>CS101</div>
-        <div style={{ color: '#888', fontSize: 12 }}>Programming Course</div>
+        {activeCourse ? (
+          <>
+            <div style={{ fontWeight: 500, marginBottom: 2 }}>{activeCourse.code}</div>
+            <div style={{ color: '#888', fontSize: 12 }}>{activeCourse.name}</div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontWeight: 500, marginBottom: 2 }}>course-001</div>
+            <div style={{ color: '#888', fontSize: 12 }}>
+              No course created yet —{' '}
+              <button onClick={() => setActive('courses')} style={{ background: 'none', border: 'none', color: '#0f6cbf', cursor: 'pointer', padding: 0, fontSize: 12 }}>
+                create one
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -311,7 +326,7 @@ const GradebookView = ({ courseId }) => {
   return (
     <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
       <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
-        <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Gradebook — CS101</h2>
+        <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Gradebook — {courseId}</h2>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
@@ -424,8 +439,104 @@ const PlagiarismView = ({ courseId }) => {
   );
 };
 
+/* ── My Courses view (create + list) ── */
+const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged }) => {
+  const [form, setForm]       = useState({ name: '', description: '', password: '' });
+  const [creating, setCreating] = useState(false);
+  const [error, setError]     = useState('');
+  const [created, setCreated] = useState(null);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!form.name.trim() || !form.password.trim()) {
+      setError('Course name and enrollment password are required.');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await axios.post('/api/courses', form);
+      setCreated(res.data);
+      setForm({ name: '', description: '', password: '' });
+      onCoursesChanged();
+      onSwitchCourse(res.data.code);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not create course.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 16, overflow: 'hidden' }}>
+        <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
+          <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Create a new course</h2>
+        </div>
+        <form onSubmit={handleCreate} style={{ padding: 20 }}>
+          {error && (
+            <div style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#842029' }}>
+              {error}
+            </div>
+          )}
+          {created && (
+            <div style={{ background: '#d4edda', border: '1px solid #c3e6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#155724' }}>
+              ✓ Course created! Share this code with students so they can enroll: <strong style={{ fontFamily: 'monospace', fontSize: 15 }}>{created.code}</strong>
+            </div>
+          )}
+          <div style={{ marginBottom: 14 }}>
+            <label style={s.label}>Course name</label>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={s.input} placeholder="e.g. CS101 – Intro to MIPS Assembly" />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={s.label}>Description <span style={{ color: '#888', fontWeight: 400 }}>(optional)</span></label>
+            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...s.input, height: 70, resize: 'vertical' }} placeholder="What is this course about?" />
+          </div>
+          <div style={{ marginBottom: 18 }}>
+            <label style={s.label}>Enrollment password</label>
+            <input type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={s.input} placeholder="Students will need this to join" />
+            <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>At least 4 characters. Students enter this along with the course code and their roll number.</div>
+          </div>
+          <button type="submit" disabled={creating} style={s.btnBlue}>{creating ? 'Creating…' : 'Create course'}</button>
+        </form>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
+        <div style={{ background: '#f8f9fa', padding: '12px 20px', borderBottom: '1px solid #dee2e6' }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#333' }}>Your courses ({courses.length})</h3>
+        </div>
+        {courses.length === 0 ? (
+          <div style={{ padding: 30, textAlign: 'center', color: '#888', fontSize: 13 }}>
+            You haven't created any courses yet. Create one above to get started.
+          </div>
+        ) : (
+          courses.map((c) => (
+            <div key={c.code} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f0f0f0' }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: 14, color: '#333' }}>
+                  {c.name}
+                  {activeCourseCode === c.code && (
+                    <span style={{ marginLeft: 8, fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#e8f0fb', color: '#0f6cbf', fontWeight: 600 }}>ACTIVE</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                  Code: <strong style={{ fontFamily: 'monospace', color: '#333' }}>{c.code}</strong> · {c.studentCount} student{c.studentCount !== 1 ? 's' : ''} enrolled
+                </div>
+                {c.description && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{c.description}</div>}
+              </div>
+              {activeCourseCode !== c.code && (
+                <button onClick={() => onSwitchCourse(c.code)} style={s.btnGray}>Set active</button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ── Main dashboard ── */
-const TeacherDashboard = ({ courseId = 'course-001', user }) => {
+const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeCourseCode, onCoursesChanged, onSwitchCourse }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [active, setActive]       = useState('questions');
@@ -467,18 +578,28 @@ const TeacherDashboard = ({ courseId = 'course-001', user }) => {
     } catch (e) { console.error(e); }
   };
 
+  const activeCourse = courses.find(c => c.code === activeCourseCode);
+
+  const sectionLabels = {
+    create: 'Create question',
+    grades: 'Gradebook',
+    plagiarism: 'Plagiarism check',
+    courses: 'My courses',
+    questions: 'Assignment questions',
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 52px)', background: '#f2f2f2' }}>
-      <Sidebar active={active} setActive={setActive} />
+      <Sidebar active={active} setActive={setActive} activeCourse={activeCourse} />
 
       <div style={{ flex: 1, padding: 24 }}>
         {/* Breadcrumb */}
         <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
           <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>Dashboard</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>CS101</span>
+          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>{activeCourse ? activeCourse.code : 'course-001'}</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span>{active === 'create' ? 'Create question' : 'Assignment questions'}</span>
+          <span>{sectionLabels[active] || 'Assignment questions'}</span>
         </div>
 
         {toast && (
@@ -577,6 +698,18 @@ const TeacherDashboard = ({ courseId = 'course-001', user }) => {
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Plagiarism Check</h1>
             <PlagiarismView courseId={courseId} />
+          </>
+        )}
+
+        {active === 'courses' && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Courses</h1>
+            <CoursesView
+              courses={courses}
+              activeCourseCode={activeCourseCode}
+              onSwitchCourse={onSwitchCourse}
+              onCoursesChanged={onCoursesChanged}
+            />
           </>
         )}
       </div>

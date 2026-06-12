@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -8,6 +8,24 @@ import StudentDashboard from './pages/StudentDashboard';
 function App() {
   const [auth, setAuth] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [courses, setCourses] = useState([]);
+  const [activeCourseCode, setActiveCourseCode] = useState(null);
+
+  // Load this user's courses (teacher: created courses, student: enrolled courses)
+  const fetchCourses = useCallback(async (currentUser) => {
+    if (!currentUser) return;
+    try {
+      const endpoint = currentUser.role === 'teacher' ? '/api/courses/mine' : '/api/courses/enrolled';
+      const res = await axios.get(endpoint);
+      setCourses(res.data);
+      setActiveCourseCode((prev) => {
+        if (prev && res.data.some((c) => c.code === prev)) return prev;
+        return res.data.length > 0 ? res.data[0].code : null;
+      });
+    } catch (e) {
+      console.error('fetchCourses error:', e);
+    }
+  }, []);
 
   // Restore session on load
   useEffect(() => {
@@ -23,6 +41,7 @@ function App() {
       .then((res) => {
         setAuth({ token, user: res.data.user });
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        fetchCourses(res.data.user);
       })
       .catch(() => {
         localStorage.removeItem('token');
@@ -30,13 +49,14 @@ function App() {
         delete axios.defaults.headers.common['Authorization'];
       })
       .finally(() => setChecking(false));
-  }, []);
+  }, [fetchCourses]);
 
   const handleLogin = ({ token, user }) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setAuth({ token, user });
+    fetchCourses(user);
   };
 
   const handleLogout = () => {
@@ -44,6 +64,8 @@ function App() {
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
     setAuth(null);
+    setCourses([]);
+    setActiveCourseCode(null);
   };
 
   if (checking) {
@@ -59,14 +81,27 @@ function App() {
   }
 
   const { user } = auth;
-  const courseId = user.courseId || 'course-001';
+  // Active course = the one the user picked, falling back to their legacy
+  // single-course assignment (or the original demo course) if they haven't
+  // created/joined any course yet.
+  const activeCourse = courses.find((c) => c.code === activeCourseCode);
+  const courseId = activeCourseCode || user.courseId || 'course-001';
+  const refreshCourses = () => fetchCourses(user);
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <Navbar userName={user.name} userRole={user.role} onLogout={handleLogout} />
+      <Navbar
+        userName={user.name}
+        userRole={user.role}
+        onLogout={handleLogout}
+        courses={courses}
+        activeCourseCode={activeCourseCode}
+        activeCourseName={activeCourse?.name}
+        onSwitchCourse={setActiveCourseCode}
+      />
       {user.role === 'teacher'
-        ? <TeacherDashboard courseId={courseId} user={user} />
-        : <StudentDashboard courseId={courseId} user={user} />}
+        ? <TeacherDashboard courseId={courseId} user={user} courses={courses} activeCourseCode={activeCourseCode} onCoursesChanged={refreshCourses} onSwitchCourse={setActiveCourseCode} />
+        : <StudentDashboard courseId={courseId} user={user} courses={courses} activeCourseCode={activeCourseCode} onCoursesChanged={refreshCourses} onSwitchCourse={setActiveCourseCode} />}
     </div>
   );
 }

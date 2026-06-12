@@ -10,6 +10,7 @@ const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName]         = useState('');
+  const [rollNumber, setRollNumber] = useState('');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
@@ -21,6 +22,7 @@ const Login = ({ onLogin }) => {
     setUsername('');
     setPassword('');
     setName('');
+    setRollNumber('');
   };
 
   const switchRole = (r) => {
@@ -42,7 +44,12 @@ const Login = ({ onLogin }) => {
           setLoading(false);
           return;
         }
-        const res = await axios.post('/api/auth/register', { username, password, name, role });
+        if (role === 'student' && !rollNumber.trim()) {
+          setError('Please enter your roll number.');
+          setLoading(false);
+          return;
+        }
+        const res = await axios.post('/api/auth/register', { username, password, name, role, rollNumber });
         onLogin(res.data);
       }
     } catch (err) {
@@ -92,7 +99,7 @@ const Login = ({ onLogin }) => {
             <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
               {mode === 'login'
                 ? 'Sign in to access your course questions and grades.'
-                : 'Register as a student or a teacher for CS101.'}
+                : 'Register as a student or a teacher, then create or join a course.'}
             </p>
 
             {/* Role selector */}
@@ -132,6 +139,20 @@ const Login = ({ onLogin }) => {
                     style={inputStyle}
                     required
                   />
+                </div>
+              )}
+              {mode === 'register' && role === 'student' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>Roll number</label>
+                  <input
+                    type="text"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                    placeholder="e.g. 21CS045"
+                    style={inputStyle}
+                    required
+                  />
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Used when enrolling in courses.</div>
                 </div>
               )}
               <div style={{ marginBottom: 16 }}>

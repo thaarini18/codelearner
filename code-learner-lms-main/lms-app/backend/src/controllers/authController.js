@@ -12,10 +12,10 @@ function signToken(user) {
   );
 }
 
-// POST /api/auth/register  { username, password, name, role, courseId }
+// POST /api/auth/register  { username, password, name, role, courseId, rollNumber }
 exports.register = async (req, res) => {
   try {
-    const { username, password, name, role, courseId } = req.body;
+    const { username, password, name, role, courseId, rollNumber } = req.body;
 
     if (!username || !password || !name || !role) {
       return res.status(400).json({ error: 'username, password, name and role are required.' });
@@ -25,6 +25,9 @@ exports.register = async (req, res) => {
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+    if (role === 'student' && (!rollNumber || !rollNumber.trim())) {
+      return res.status(400).json({ error: 'Roll number is required for students.' });
     }
 
     const existing = await User.findOne({ username: username.trim().toLowerCase() });
@@ -38,6 +41,7 @@ exports.register = async (req, res) => {
       name: name.trim(),
       role,
       courseId: courseId || 'course-001',
+      rollNumber: role === 'student' ? rollNumber.trim() : '',
     });
 
     const token = signToken(user);

@@ -8,6 +8,7 @@ const submissionRoutes  = require('./routes/submissionRoutes');
 const gradeRoutes       = require('./routes/gradeRoutes');
 const plagiarismRoutes  = require('./routes/plagiarismRoutes');
 const authRoutes        = require('./routes/authRoutes');
+const courseRoutes      = require('./routes/courseRoutes');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/questions',   questionRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/grades',      gradeRoutes);
 app.use('/api/plagiarism',  plagiarismRoutes);
+app.use('/api/courses',     courseRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

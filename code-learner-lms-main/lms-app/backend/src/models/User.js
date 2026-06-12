@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   name:         { type: String, required: true, trim: true },
   role:         { type: String, enum: ['student', 'teacher'], required: true },
   courseId:     { type: String, default: 'course-001' },
+  rollNumber:   { type: String, default: '', trim: true },
 }, { timestamps: true });
 
 // Hash a plaintext password before saving, only if it changed
