@@ -7,6 +7,15 @@ const DIFF_COLORS = {
   hard:   { bg: '#f8d7da', color: '#721c24' },
 };
 
+/* Moodle-style course "tile" banners — repeating geometric patterns in a few palettes */
+const COURSE_PATTERNS = [
+  'repeating-linear-gradient(45deg, #f0ad4e 0, #f0ad4e 18px, #f7c781 18px, #f7c781 36px)',
+  'repeating-linear-gradient(45deg, #2f80c9 0, #2f80c9 22px, #5b9bdb 22px, #5b9bdb 44px)',
+  'repeating-linear-gradient(135deg, #1ba98c 0, #1ba98c 22px, #3fc4a7 22px, #3fc4a7 44px)',
+  'repeating-linear-gradient(45deg, #8e6fcf 0, #8e6fcf 18px, #ab95dd 18px, #ab95dd 36px)',
+  'repeating-linear-gradient(135deg, #e0566f 0, #e0566f 18px, #ea8898 18px, #ea8898 36px)',
+];
+
 const LANGUAGES = [
   { value: 'mips',       label: 'MIPS Assembly' },
   { value: 'c',          label: 'C' },
@@ -521,10 +530,16 @@ const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCours
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {courses.map((c) => (
-            <div key={c.code} style={{ background: '#fff', borderRadius: 8, border: '1px solid #dee2e6', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 64, background: 'linear-gradient(135deg, #0f6cbf, #4a90d9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: 2, fontFamily: 'monospace' }}>{c.code}</span>
+          {courses.map((c, i) => (
+            <div
+              key={c.code}
+              onClick={() => onOpenCourse(c.code)}
+              style={{ background: '#fff', borderRadius: 8, border: '1px solid #dee2e6', overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'box-shadow .15s, transform .15s' }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <div style={{ height: 80, background: COURSE_PATTERNS[i % COURSE_PATTERNS.length], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: 2, fontFamily: 'monospace', textShadow: '0 1px 3px rgba(0,0,0,0.25)' }}>{c.code}</span>
               </div>
               <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontWeight: 600, fontSize: 14, color: '#333', marginBottom: 6 }}>
@@ -539,9 +554,9 @@ const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCours
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {activeCourseCode !== c.code && (
-                    <button onClick={() => onSwitchCourse(c.code)} style={{ ...s.btnGray, flex: 1 }}>Set active</button>
+                    <button onClick={(e) => { e.stopPropagation(); onSwitchCourse(c.code); }} style={{ ...s.btnGray, flex: 1 }}>Set active</button>
                   )}
-                  <button onClick={() => onOpenCourse(c.code)} style={{ ...s.btnBlue, flex: 1 }}>Open course →</button>
+                  <button onClick={(e) => { e.stopPropagation(); onOpenCourse(c.code); }} style={{ ...s.btnBlue, flex: 1 }}>Open course →</button>
                 </div>
               </div>
             </div>
