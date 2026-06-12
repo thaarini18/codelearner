@@ -15,7 +15,7 @@ function generateCode() {
 // POST /api/courses  (teacher)  { name, description, password }
 exports.createCourse = async (req, res) => {
   try {
-    const { name, description, password } = req.body;
+    const { name, description, password, code: requestedCode } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Course name is required.' });
     }
@@ -23,18 +23,29 @@ exports.createCourse = async (req, res) => {
       return res.status(400).json({ error: 'Enrollment password must be at least 4 characters.' });
     }
 
-    // Generate a unique course code
     let code;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const candidate = generateCode();
-      // eslint-disable-next-line no-await-in-loop
-      if (!(await Course.findOne({ code: candidate }))) {
-        code = candidate;
-        break;
+    if (requestedCode && requestedCode.trim()) {
+      const candidate = requestedCode.trim().toUpperCase();
+      if (!/^[A-Z0-9]{4,10}$/.test(candidate)) {
+        return res.status(400).json({ error: 'Course code must be 4–10 letters/numbers (A–Z, 0–9).' });
       }
-    }
-    if (!code) {
-      return res.status(500).json({ error: 'Could not generate a unique course code. Please try again.' });
+      if (await Course.findOne({ code: candidate })) {
+        return res.status(409).json({ error: 'That course code is already taken. Please choose another.' });
+      }
+      code = candidate;
+    } else {
+      // Generate a unique course code
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const candidate = generateCode();
+        // eslint-disable-next-line no-await-in-loop
+        if (!(await Course.findOne({ code: candidate }))) {
+          code = candidate;
+          break;
+        }
+      }
+      if (!code) {
+        return res.status(500).json({ error: 'Could not generate a unique course code. Please try again.' });
+      }
     }
 
     const course = await Course.create({

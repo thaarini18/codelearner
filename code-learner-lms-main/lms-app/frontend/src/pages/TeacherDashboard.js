@@ -449,7 +449,7 @@ const PlagiarismView = ({ courseId }) => {
 
 /* ── My Courses view (create + list) ── */
 const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged, onOpenCourse }) => {
-  const [form, setForm]       = useState({ name: '', description: '', password: '' });
+  const [form, setForm]       = useState({ name: '', description: '', password: '', code: '' });
   const [creating, setCreating] = useState(false);
   const [error, setError]     = useState('');
   const [created, setCreated] = useState(null);
@@ -466,7 +466,7 @@ const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChang
     try {
       const res = await axios.post('/api/courses', form);
       setCreated(res.data);
-      setForm({ name: '', description: '', password: '' });
+      setForm({ name: '', description: '', password: '', code: '' });
       onCoursesChanged();
       onSwitchCourse(res.data.code);
     } catch (err) {
@@ -506,6 +506,18 @@ const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChang
             <div style={{ marginBottom: 14 }}>
               <label style={s.label}>Description <span style={{ color: '#888', fontWeight: 400 }}>(optional)</span></label>
               <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...s.input, height: 70, resize: 'vertical' }} placeholder="What is this course about?" />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={s.label}>Course code <span style={{ color: '#888', fontWeight: 400 }}>(optional)</span></label>
+              <input
+                type="text"
+                value={form.code}
+                onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                style={{ ...s.input, fontFamily: 'monospace', letterSpacing: 1 }}
+                placeholder="e.g. MIPS01"
+                maxLength={10}
+              />
+              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>4–10 letters/numbers. Leave blank to auto-generate a random code.</div>
             </div>
             <div style={{ marginBottom: 18 }}>
               <label style={s.label}>Enrollment password</label>
