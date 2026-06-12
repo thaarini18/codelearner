@@ -13,6 +13,8 @@ const submissionSchema = new mongoose.Schema({
   questionId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Question', required: true },
   courseId:      { type: String, required: true },
   studentId:     { type: String, required: true },   // student name / identifier
+  studentUsername: { type: String, default: '' },    // login username
+  rollNumber:    { type: String, default: '' },       // roll number for this course
   language:      { type: String, required: true },
   code:          { type: String, required: true },
   testResults:   { type: [testResultSchema], default: [] },

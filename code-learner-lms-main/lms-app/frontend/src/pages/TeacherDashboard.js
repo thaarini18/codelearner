@@ -212,6 +212,7 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
         {tabBtn('answer',      '📝 Answer')}
         {tabBtn('placeholder', '💻 Placeholder code')}
         {tabBtn('testcases',   `🧪 Test cases${q.testCases?.length ? ` (${q.testCases.length})` : ''}`)}
+        {tabBtn('submissions', '📋 Submissions')}
       </div>
 
       {/* Tab: Answer */}
@@ -293,6 +294,13 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
         </div>
       )}
 
+      {/* Tab: Submissions */}
+      {tab === 'submissions' && (
+        <div style={s.section}>
+          <SubmissionsPanel questionId={q._id} />
+        </div>
+      )}
+
       {/* Visibility toggle — always visible at bottom */}
       <div style={{ padding: '12px 20px', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
@@ -308,6 +316,107 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
           <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: q.isAnswerVisible ? 23 : 3, transition: 'left 0.2s' }} />
         </button>
       </div>
+    </div>
+  );
+};
+
+/* ── Per-question submissions panel (sorted by roll number) ── */
+const SubmissionsPanel = ({ questionId }) => {
+  const [subs, setSubs]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    axios.get(`/api/submissions/question/${questionId}`)
+      .then(r => setSubs(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [questionId]);
+
+  const scoreColor = (score) => score >= 80 ? '#155724' : score >= 50 ? '#856404' : '#721c24';
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 30, color: '#666' }}>Loading submissions…</div>;
+  if (!subs.length) return (
+    <div style={{ background: '#f8f9fa', borderRadius: 4, padding: 30, textAlign: 'center', color: '#888', fontSize: 13 }}>
+      No submissions yet for this question.
+    </div>
+  );
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: '#666', marginTop: 0, marginBottom: 12 }}>
+        Showing each student's most recent submission, sorted by roll number.
+      </p>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: '#f8f9fa' }}>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Roll No.</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Student</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Language</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Score</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Attempts</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}>Last submitted</th>
+            <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #dee2e6', fontWeight: 600 }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {subs.map((sub, i) => (
+            <React.Fragment key={sub._id}>
+              <tr style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{sub.rollNumber || '—'}</td>
+                <td style={{ padding: '8px 12px', fontWeight: 500 }}>{sub.studentId}</td>
+                <td style={{ padding: '8px 12px', color: '#555' }}>{LANGUAGES.find(l => l.value === sub.language)?.label || sub.language}</td>
+                <td style={{ padding: '8px 12px' }}>
+                  {sub.totalCases > 0 ? (
+                    <span style={{ fontWeight: 600, color: scoreColor(sub.score) }}>{sub.score}% ({sub.totalPassed}/{sub.totalCases})</span>
+                  ) : (
+                    <span style={{ color: '#888' }}>—</span>
+                  )}
+                </td>
+                <td style={{ padding: '8px 12px', color: '#555' }}>{sub.attempts}</td>
+                <td style={{ padding: '8px 12px', color: '#888', fontSize: 12 }}>{new Date(sub.submittedAt).toLocaleString()}</td>
+                <td style={{ padding: '8px 12px' }}>
+                  <button
+                    onClick={() => setExpanded(expanded === sub._id ? null : sub._id)}
+                    style={{ ...s.btnGray, padding: '4px 10px', fontSize: 12 }}
+                  >
+                    {expanded === sub._id ? 'Hide code' : 'View code'}
+                  </button>
+                </td>
+              </tr>
+              {expanded === sub._id && (
+                <tr style={{ background: '#f9f9ff', borderBottom: '1px solid #f0f0f0' }}>
+                  <td colSpan={7} style={{ padding: '10px 12px' }}>
+                    <div style={{ background: '#272822', color: '#f8f8f2', borderRadius: 4, padding: 12, ...s.mono, whiteSpace: 'pre-wrap', overflowX: 'auto', marginBottom: sub.testResults?.length ? 10 : 0 }}>
+                      {sub.code}
+                    </div>
+                    {sub.testResults?.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {sub.testResults.map((tr, j) => (
+                          <span
+                            key={j}
+                            style={{
+                              fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500,
+                              background: tr.passed === true ? '#d4edda' : tr.passed === false ? '#f8d7da' : '#e9ecef',
+                              color: tr.passed === true ? '#155724' : tr.passed === false ? '#721c24' : '#555',
+                            }}
+                          >
+                            {tr.label || `Test ${j + 1}`}: {tr.passed === true ? 'Pass' : tr.passed === false ? 'Fail' : 'Ran'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {sub.executionError && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#721c24' }}>Error: {sub.executionError}</div>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

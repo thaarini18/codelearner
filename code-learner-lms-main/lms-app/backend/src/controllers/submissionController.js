@@ -6,6 +6,27 @@ const os        = require('os');
 const Submission = require('../models/Submission');
 const Question   = require('../models/Question');
 const Grade      = require('../models/Grade');
+const Enrollment = require('../models/Enrollment');
+
+// Sort helper — compares roll numbers "naturally" so "21CS002" < "21CS010"
+// (splits into chunks of digits/non-digits and compares digit chunks numerically).
+function compareRollNumbers(a = '', b = '') {
+  const chunk = s => String(s).match(/\d+|\D+/g) || [];
+  const ca = chunk(a), cb = chunk(b);
+  const len = Math.max(ca.length, cb.length);
+  for (let i = 0; i < len; i++) {
+    const x = ca[i] || '', y = cb[i] || '';
+    if (x === y) continue;
+    const xNum = /^\d+$/.test(x), yNum = /^\d+$/.test(y);
+    if (xNum && yNum) {
+      const diff = Number(x) - Number(y);
+      if (diff !== 0) return diff;
+    } else {
+      return x < y ? -1 : 1;
+    }
+  }
+  return 0;
+}
 
 const JUDGE0_URL = 'https://ce.judge0.com/submissions?base64_encoded=false&wait=true';
 
@@ -126,12 +147,23 @@ exports.submitCode = async (req, res) => {
     // Identity comes from the authenticated JWT, not the request body,
     // so a student can't submit code under another student's name.
     const studentId = req.user.name;
+    const studentUsername = req.user.username;
     if (!questionId || !language || !code) {
       return res.status(400).json({ error: 'questionId, language and code are required.' });
     }
 
     const question = await Question.findById(questionId);
     if (!question) return res.status(404).json({ error: 'Question not found.' });
+
+    // Look up this student's roll number for the course (if enrolled)
+    let rollNumber = '';
+    try {
+      const enrollment = await Enrollment.findOne({
+        studentUsername: (studentUsername || '').toLowerCase(),
+        courseCode: (courseId || question.courseId || '').toUpperCase(),
+      });
+      if (enrollment) rollNumber = enrollment.rollNumber || '';
+    } catch (_) { /* ignore lookup errors */ }
 
     const testCases = question.testCases || [];
     const testResults = [];
@@ -180,6 +212,8 @@ exports.submitCode = async (req, res) => {
       questionId,
       courseId:      courseId || question.courseId,
       studentId,
+      studentUsername,
+      rollNumber,
       language,
       code,
       testResults,
@@ -202,12 +236,41 @@ exports.submitCode = async (req, res) => {
 };
 
 // GET /api/submissions/question/:questionId?studentId=xxx
+// Teacher view: by default returns ONE row per student — their most recent
+// submission for this question — sorted by roll number. Pass ?all=true to
+// get the full submission history instead (most recent first).
 exports.getSubmissions = async (req, res) => {
   try {
     const filter = { questionId: req.params.questionId };
     if (req.query.studentId) filter.studentId = req.query.studentId;
     const subs = await Submission.find(filter).sort({ submittedAt: -1 });
-    res.json(subs);
+
+    if (req.query.all === 'true') {
+      return res.json(subs);
+    }
+
+    // Collapse to the latest submission per student, with attempt counts.
+    const latestByStudent = new Map();
+    for (const sub of subs) {
+      const key = sub.studentUsername || sub.studentId;
+      const entry = latestByStudent.get(key);
+      if (!entry) {
+        latestByStudent.set(key, { ...sub.toObject(), attempts: 1 });
+      } else {
+        entry.attempts += 1;
+      }
+    }
+
+    const result = Array.from(latestByStudent.values()).sort((a, b) => {
+      const byRoll = compareRollNumbers(a.rollNumber, b.rollNumber);
+      if (byRoll !== 0) return byRoll;
+      // Students without a roll number sort after those with one
+      if (!a.rollNumber && b.rollNumber) return 1;
+      if (a.rollNumber && !b.rollNumber) return -1;
+      return (a.studentId || '').localeCompare(b.studentId || '');
+    });
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
