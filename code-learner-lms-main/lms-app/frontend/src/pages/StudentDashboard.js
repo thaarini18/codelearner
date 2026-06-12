@@ -336,11 +336,10 @@ const Sidebar = ({ active, setActive, studentName, activeCourse }) => {
           </>
         ) : (
           <>
-            <div style={{ fontWeight: 500, marginBottom: 2 }}>course-001</div>
+            <div style={{ fontWeight: 500, marginBottom: 2 }}>No courses yet</div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              Not enrolled yet —{' '}
               <button onClick={() => setActive('courses')} style={{ background: 'none', border: 'none', color: '#0f6cbf', cursor: 'pointer', padding: 0, fontSize: 12 }}>
-                join a course
+                Join a course
               </button>
             </div>
           </>
@@ -595,7 +594,7 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
         <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
           <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>Dashboard</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>{activeCourse ? activeCourse.code : 'course-001'}</span>
+          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>{activeCourse ? activeCourse.code : 'No courses yet'}</span>
           <span style={{ margin: '0 6px' }}>›</span>
           <span>{sectionLabels[activeSection] || 'Course questions'}</span>
         </div>
@@ -615,7 +614,7 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
                 <span style={{ fontSize: 20 }}>💻</span>
                 <div>
                   <div style={{ color: 'white', fontWeight: 600, fontSize: 15 }}>
-                    {activeCourse ? `${activeCourse.code} – ${activeCourse.name}` : 'CS101 – Programming Course'}
+                    {activeCourse ? `${activeCourse.code} – ${activeCourse.name}` : 'No course selected'}
                   </div>
                   <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12 }}>Choose your language per question. Click Run to check your solution against test cases.</div>
                 </div>

@@ -52,11 +52,10 @@ const Sidebar = ({ active, setActive, activeCourse }) => {
           </>
         ) : (
           <>
-            <div style={{ fontWeight: 500, marginBottom: 2 }}>course-001</div>
+            <div style={{ fontWeight: 500, marginBottom: 2 }}>No courses yet</div>
             <div style={{ color: '#888', fontSize: 12 }}>
-              No course created yet —{' '}
               <button onClick={() => setActive('courses')} style={{ background: 'none', border: 'none', color: '#0f6cbf', cursor: 'pointer', padding: 0, fontSize: 12 }}>
-                create one
+                Create a course
               </button>
             </div>
           </>
@@ -605,7 +604,7 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
         <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
           <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>Dashboard</span>
           <span style={{ margin: '0 6px' }}>›</span>
-          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>{activeCourse ? activeCourse.code : 'course-001'}</span>
+          <span style={{ color: '#0f6cbf', cursor: 'pointer' }}>{activeCourse ? activeCourse.code : 'No courses yet'}</span>
           <span style={{ margin: '0 6px' }}>›</span>
           <span>{sectionLabels[active] || 'Assignment questions'}</span>
         </div>
