@@ -453,7 +453,7 @@ const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChang
   const [creating, setCreating] = useState(false);
   const [error, setError]     = useState('');
   const [created, setCreated] = useState(null);
-  const [showForm, setShowForm] = useState(courses.length === 0);
+  const [showForm, setShowForm] = useState(false);
 
   const handleCreate = async (e) => {
     e.preventDefault();

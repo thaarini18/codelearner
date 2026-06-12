@@ -437,7 +437,7 @@ const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCours
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState('');
-  const [showForm, setShowForm] = useState(courses.length === 0);
+  const [showForm, setShowForm] = useState(false);
 
   const handleEnroll = async (e) => {
     e.preventDefault();
