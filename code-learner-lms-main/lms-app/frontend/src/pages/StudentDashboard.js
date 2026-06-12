@@ -577,6 +577,7 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
 
   const activeCourse = courses.find(c => c.code === activeCourseCode);
   const isLocked = !!activeCourse && !unlockedCourses.has(activeCourse.code);
+  const noActiveCourse = !activeCourse;
 
   const handleOpenCourse = (code) => {
     onSwitchCourse(code);
@@ -623,14 +624,24 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
           <span>{sectionLabels[activeSection] || 'Course questions'}</span>
         </div>
 
-        {['questions', 'history', 'grades'].includes(activeSection) && isLocked && (
+        {['questions', 'history', 'grades'].includes(activeSection) && noActiveCourse && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>{sectionLabels[activeSection]}</h1>
+            <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center' }}>
+              <div style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>You haven't joined any courses yet. Join a course to see its {sectionLabels[activeSection]?.toLowerCase()}.</div>
+              <button onClick={() => setActiveSection('courses')} style={s.btnBlue}>Go to Dashboard</button>
+            </div>
+          </>
+        )}
+
+        {['questions', 'history', 'grades'].includes(activeSection) && !noActiveCourse && isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>{sectionLabels[activeSection]}</h1>
             <CourseAccessGate course={activeCourse} defaultRollNumber={activeCourse.rollNumber || user?.rollNumber || ''} onUnlock={handleUnlock} />
           </>
         )}
 
-        {activeSection === 'questions' && !isLocked && (
+        {activeSection === 'questions' && !noActiveCourse && !isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Course questions</h1>
             <div style={{ background: 'white', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 16, overflow: 'hidden' }}>
@@ -685,14 +696,14 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
           </>
         )}
 
-        {activeSection === 'history' && !isLocked && (
+        {activeSection === 'history' && !noActiveCourse && !isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Submissions</h1>
             <HistoryView studentId={studentId} courseId={courseId} />
           </>
         )}
 
-        {activeSection === 'grades' && !isLocked && (
+        {activeSection === 'grades' && !noActiveCourse && !isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Grades</h1>
             <MyGrades studentId={studentId} courseId={courseId} />

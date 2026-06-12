@@ -605,6 +605,7 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
   };
 
   const activeCourse = courses.find(c => c.code === activeCourseCode);
+  const noActiveCourse = !activeCourse;
 
   const handleOpenCourse = (code) => {
     onSwitchCourse(code);
@@ -639,8 +640,18 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
           </div>
         )}
 
+        {['questions', 'create', 'grades', 'plagiarism'].includes(active) && noActiveCourse && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>{sectionLabels[active]}</h1>
+            <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', padding: 40, textAlign: 'center' }}>
+              <div style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>You don't have any courses yet. Create a course to manage its {sectionLabels[active]?.toLowerCase()}.</div>
+              <button onClick={() => setActive('courses')} style={s.btnBlue}>Go to Dashboard</button>
+            </div>
+          </>
+        )}
+
         {/* Create form */}
-        {active === 'create' && (
+        {active === 'create' && !noActiveCourse && (
           <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', overflow: 'hidden' }}>
             <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
               <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>Create new question</h2>
@@ -688,7 +699,7 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
         )}
 
         {/* Questions list */}
-        {active === 'questions' && (
+        {active === 'questions' && !noActiveCourse && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: '#333' }}>
@@ -718,14 +729,14 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
           </>
         )}
 
-        {active === 'grades' && (
+        {active === 'grades' && !noActiveCourse && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Gradebook</h1>
             <GradebookView courseId={courseId} />
           </>
         )}
 
-        {active === 'plagiarism' && (
+        {active === 'plagiarism' && !noActiveCourse && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Plagiarism Check</h1>
             <PlagiarismView courseId={courseId} />
