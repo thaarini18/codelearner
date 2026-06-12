@@ -15,4 +15,7 @@ router.post('/enroll', authenticate, requireRole('student'), courseController.en
 // Student: list courses they're enrolled in
 router.get('/enrolled', authenticate, requireRole('student'), courseController.getEnrolledCourses);
 
+// Student: re-verify roll number + password before opening a course's materials
+router.post('/verify', authenticate, requireRole('student'), courseController.verifyCourseAccess);
+
 module.exports = router;

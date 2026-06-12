@@ -355,8 +355,76 @@ const Sidebar = ({ active, setActive, studentName, activeCourse }) => {
   );
 };
 
+/* ── Course access gate (re-check roll number + password) ── */
+const CourseAccessGate = ({ course, defaultRollNumber, onUnlock }) => {
+  const [password, setPassword]   = useState('');
+  const [rollNumber, setRollNumber] = useState(defaultRollNumber || '');
+  const [error, setError]         = useState('');
+  const [verifying, setVerifying] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!password.trim() || !rollNumber.trim()) {
+      setError('Roll number and course password are required.');
+      return;
+    }
+    setVerifying(true);
+    try {
+      await axios.post('/api/courses/verify', {
+        code: course.code,
+        password,
+        rollNumber: rollNumber.trim(),
+      });
+      onUnlock(course.code);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not verify access.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 6, border: '1px solid #dee2e6', maxWidth: 440, overflow: 'hidden' }}>
+      <div style={{ background: '#0f6cbf', padding: '14px 20px' }}>
+        <h2 style={{ margin: 0, color: '#fff', fontSize: 18, fontWeight: 600 }}>🔒 {course.code} – {course.name}</h2>
+      </div>
+      <form onSubmit={handleSubmit} style={{ padding: 20 }}>
+        <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px' }}>
+          Enter your roll number and this course's password to access its questions, submissions and grades.
+        </p>
+        {error && (
+          <div style={{ background: '#fdf2f2', border: '1px solid #f5c6cb', borderRadius: 4, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#842029' }}>
+            {error}
+          </div>
+        )}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 5 }}>Roll number</label>
+          <input
+            value={rollNumber}
+            onChange={e => setRollNumber(e.target.value)}
+            style={s.input}
+            placeholder="e.g. 21CS045"
+          />
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#333', marginBottom: 5 }}>Course password</label>
+          <input
+            type="text"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            style={s.input}
+            placeholder="Given by your teacher"
+          />
+        </div>
+        <button type="submit" disabled={verifying} style={s.btnBlue}>{verifying ? 'Verifying…' : 'Unlock course'}</button>
+      </form>
+    </div>
+  );
+};
+
 /* ── My Courses view (enroll + list) ── */
-const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged, defaultRollNumber }) => {
+const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged, onOpenCourse, defaultRollNumber }) => {
   const [form, setForm]         = useState({ code: '', password: '', rollNumber: defaultRollNumber || '' });
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError]       = useState('');
@@ -462,9 +530,12 @@ const StudentCoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCours
                 </div>
                 {c.description && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{c.description}</div>}
               </div>
-              {activeCourseCode !== c.code && (
-                <button onClick={() => onSwitchCourse(c.code)} style={s.btnGray}>Set active</button>
-              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {activeCourseCode !== c.code && (
+                  <button onClick={() => onSwitchCourse(c.code)} style={s.btnGray}>Set active</button>
+                )}
+                <button onClick={() => onOpenCourse(c.code)} style={s.btnBlue}>Open course →</button>
+              </div>
             </div>
           ))
         )}
@@ -478,9 +549,20 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
   const studentId = user?.name || '';
   const [questions, setQuestions]         = useState([]);
   const [loading, setLoading]             = useState(true);
-  const [activeSection, setActiveSection] = useState('questions');
+  const [activeSection, setActiveSection] = useState('courses');
+  const [unlockedCourses, setUnlockedCourses] = useState(new Set());
 
   const activeCourse = courses.find(c => c.code === activeCourseCode);
+  const isLocked = !!activeCourse && !unlockedCourses.has(activeCourse.code);
+
+  const handleOpenCourse = (code) => {
+    onSwitchCourse(code);
+    setActiveSection('questions');
+  };
+
+  const handleUnlock = (code) => {
+    setUnlockedCourses(prev => new Set(prev).add(code));
+  };
 
   const fetchQuestions = useCallback(async () => {
     try {
@@ -518,7 +600,14 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
           <span>{sectionLabels[activeSection] || 'Course questions'}</span>
         </div>
 
-        {activeSection === 'questions' && (
+        {['questions', 'history', 'grades'].includes(activeSection) && isLocked && (
+          <>
+            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>{sectionLabels[activeSection]}</h1>
+            <CourseAccessGate course={activeCourse} defaultRollNumber={activeCourse.rollNumber || user?.rollNumber || ''} onUnlock={handleUnlock} />
+          </>
+        )}
+
+        {activeSection === 'questions' && !isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>Course questions</h1>
             <div style={{ background: 'white', borderRadius: 6, border: '1px solid #dee2e6', marginBottom: 16, overflow: 'hidden' }}>
@@ -573,14 +662,14 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
           </>
         )}
 
-        {activeSection === 'history' && (
+        {activeSection === 'history' && !isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Submissions</h1>
             <HistoryView studentId={studentId} courseId={courseId} />
           </>
         )}
 
-        {activeSection === 'grades' && (
+        {activeSection === 'grades' && !isLocked && (
           <>
             <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Grades</h1>
             <MyGrades studentId={studentId} courseId={courseId} />
@@ -595,6 +684,7 @@ const StudentDashboard = ({ courseId = 'course-001', user, courses = [], activeC
               activeCourseCode={activeCourseCode}
               onSwitchCourse={onSwitchCourse}
               onCoursesChanged={onCoursesChanged}
+              onOpenCourse={handleOpenCourse}
               defaultRollNumber={user?.rollNumber || ''}
             />
           </>

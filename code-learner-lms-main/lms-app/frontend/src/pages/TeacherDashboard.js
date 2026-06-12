@@ -440,7 +440,7 @@ const PlagiarismView = ({ courseId }) => {
 };
 
 /* ── My Courses view (create + list) ── */
-const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged }) => {
+const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChanged, onOpenCourse }) => {
   const [form, setForm]       = useState({ name: '', description: '', password: '' });
   const [creating, setCreating] = useState(false);
   const [error, setError]     = useState('');
@@ -524,9 +524,12 @@ const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChang
                 </div>
                 {c.description && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{c.description}</div>}
               </div>
-              {activeCourseCode !== c.code && (
-                <button onClick={() => onSwitchCourse(c.code)} style={s.btnGray}>Set active</button>
-              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {activeCourseCode !== c.code && (
+                  <button onClick={() => onSwitchCourse(c.code)} style={s.btnGray}>Set active</button>
+                )}
+                <button onClick={() => onOpenCourse(c.code)} style={s.btnBlue}>Open course →</button>
+              </div>
             </div>
           ))
         )}
@@ -539,7 +542,7 @@ const CoursesView = ({ courses, activeCourseCode, onSwitchCourse, onCoursesChang
 const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeCourseCode, onCoursesChanged, onSwitchCourse }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading]     = useState(true);
-  const [active, setActive]       = useState('questions');
+  const [active, setActive]       = useState('courses');
   const [newQ, setNewQ]           = useState({ title: '', description: '', difficulty: 'medium', language: '' });
   const [toast, setToast]         = useState(null);
 
@@ -579,6 +582,11 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
   };
 
   const activeCourse = courses.find(c => c.code === activeCourseCode);
+
+  const handleOpenCourse = (code) => {
+    onSwitchCourse(code);
+    setActive('questions');
+  };
 
   const sectionLabels = {
     create: 'Create question',
@@ -709,6 +717,7 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
               activeCourseCode={activeCourseCode}
               onSwitchCourse={onSwitchCourse}
               onCoursesChanged={onCoursesChanged}
+              onOpenCourse={handleOpenCourse}
             />
           </>
         )}

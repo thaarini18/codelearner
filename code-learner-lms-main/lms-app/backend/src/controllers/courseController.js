@@ -117,6 +117,42 @@ exports.enrollCourse = async (req, res) => {
   }
 };
 
+// POST /api/courses/verify  (student)  { code, password, rollNumber }
+// Re-checks the course password + roll number for a course the student is
+// already enrolled in, before letting them open that course's materials.
+exports.verifyCourseAccess = async (req, res) => {
+  try {
+    const { code, password, rollNumber } = req.body;
+    if (!code || !password || !rollNumber || !rollNumber.trim()) {
+      return res.status(400).json({ error: 'Course password and roll number are required.' });
+    }
+
+    const course = await Course.findOne({ code: code.trim().toUpperCase() });
+    if (!course) {
+      return res.status(404).json({ error: 'No course found with that code.' });
+    }
+
+    const enrollment = await Enrollment.findOne({ studentUsername: req.user.username, courseCode: course.code });
+    if (!enrollment) {
+      return res.status(403).json({ error: 'You are not enrolled in this course.' });
+    }
+
+    const passwordOk = await course.comparePassword(password);
+    if (!passwordOk) {
+      return res.status(401).json({ error: 'Incorrect course password.' });
+    }
+
+    if (enrollment.rollNumber.trim().toLowerCase() !== rollNumber.trim().toLowerCase()) {
+      return res.status(401).json({ error: 'Roll number does not match our records for this course.' });
+    }
+
+    res.json({ ok: true, course: { code: course.code, name: course.name, description: course.description } });
+  } catch (err) {
+    console.error('verifyCourseAccess error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /api/courses/enrolled  (student) — courses this student has enrolled in
 exports.getEnrolledCourses = async (req, res) => {
   try {
