@@ -719,7 +719,6 @@ const TeacherDashboard = ({ courseId = 'course-001', user, courses = [], activeC
 
         {active === 'courses' && (
           <>
-            <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, color: '#333' }}>My Courses</h1>
             <CoursesView
               courses={courses}
               activeCourseCode={activeCourseCode}
