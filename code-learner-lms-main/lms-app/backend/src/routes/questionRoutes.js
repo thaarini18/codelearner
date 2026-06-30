@@ -24,4 +24,7 @@ router.patch('/:id/visibility', authenticate, requireRole('teacher'), questionCo
 // Delete question (teacher only)
 router.delete('/:id', authenticate, requireRole('teacher'), questionController.deleteQuestion);
 
+// Generate starter code via local LLM (teacher only)
+router.post('/generate-starter', authenticate, requireRole('teacher'), questionController.generateStarterCode);
+
 module.exports = router;

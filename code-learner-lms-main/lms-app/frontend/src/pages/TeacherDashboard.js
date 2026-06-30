@@ -173,7 +173,6 @@ const LANGUAGES = [
   { value: 'csharp',     label: 'C#' },
   { value: 'ruby',       label: 'Ruby' },
   { value: 'sql',        label: 'SQL' },
-  { value: 'flex',       label: 'Flex/Lex' },
 ];
 
 const PLACEHOLDERS = {
@@ -186,7 +185,6 @@ const PLACEHOLDERS = {
   csharp:     'using System;\n\nclass Solution {\n    static void Main() {\n        // your code here\n    }\n}',
   ruby:       '# Ruby starter\ndef solution\n  # your code here\nend\n\nsolution',
   sql:        '-- SQL starter\nSELECT * FROM table_name\nWHERE condition;',
-  flex:       '%option noyywrap\n%%\n/* match pattern  { action } */\n[a-zA-Z]+  { printf("WORD: %s\\n", yytext); }\n[0-9]+     { printf("NUM: %s\\n", yytext); }\n\\n         { /* skip newlines */ }\n.          { /* skip other chars */ }\n%%\nint main() {\n    yylex();\n    return 0;\n}',
 };
 
 const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
@@ -197,6 +195,25 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
   const [language, setLanguage]           = useState(q.language || 'mips');
   const [testCases, setTestCases]         = useState(q.testCases || []);
   const [saving, setSaving]               = useState(false);
+  const [generating, setGenerating]       = useState(false);
+  const [genError, setGenError]           = useState('');
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGenError('');
+    try {
+      const res = await axios.post('/api/questions/generate-starter', {
+        language,
+        title: q.title,
+        description: q.description,
+      });
+      setPlaceholder(res.data.code);
+    } catch (err) {
+      setGenError(err.response?.data?.error || 'Could not generate starter code.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const saveAnswer = async () => {
     if (!answerDraft.trim()) return;
@@ -310,7 +327,17 @@ const QuestionCard = ({ q, index, onUpdate, onToggleVisibility }) => {
             </select>
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={s.label}>Placeholder code</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label style={s.label}>Placeholder code</label>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                style={{ ...s.btnGray, fontSize: 12, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {generating ? 'Generating…' : '✨ Generate with AI'}
+              </button>
+            </div>
+            {genError && <div style={{ fontSize: 12, color: '#dc3545', marginBottom: 6 }}>{genError}</div>}
             <textarea
               value={placeholder}
               onChange={e => setPlaceholder(e.target.value)}
