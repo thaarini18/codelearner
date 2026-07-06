@@ -81,11 +81,17 @@ exports.generateStarterCode = async (req, res) => {
 
   const langName = LANG_NAMES[language] || language;
 
-  const prompt = `You are a code generator. Output ONLY raw code with no explanation, no markdown, no code fences, no comments other than a single TODO comment showing where the student should write their solution.
+  const prompt = `Output ONLY raw ${langName} code. No explanation. No markdown. No code fences. No backticks.
 
-Generate starter/boilerplate code in ${langName} for a programming question titled "${title || 'Untitled'}".
-Include only: necessary imports, class/function structure, and a main entry point if required by the language.
-Do not solve the problem. Output raw code only.`;
+Rules:
+- Include necessary imports and a main entry point only.
+- Do NOT implement any logic or solve the problem.
+- Replace the function body with a single comment: // TODO: write your solution here
+- Do not add helper functions or sample implementations.
+
+Question title: "${title || 'Untitled'}"
+
+Raw code:`;
 
   try {
     const response = await axios.post(OLLAMA_URL, {
@@ -97,8 +103,8 @@ Do not solve the problem. Output raw code only.`;
 
     let code = response.data.response || '';
 
-    // Strip any markdown code fences the model might still include
-    code = code.replace(/^```[\w]*\n?/gm, '').replace(/^```$/gm, '').trim();
+    // Strip any markdown code fences or stray backticks the model might include
+    code = code.replace(/^```[\w]*\n?/gm, '').replace(/`{1,3}/g, '').trim();
 
     res.json({ code });
   } catch (err) {
